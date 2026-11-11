@@ -49,7 +49,7 @@ p {
 .app {
   max-width: 520px;
   margin: 0 auto;
-  padding: calc(16px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -506,7 +506,7 @@ form {
   position: fixed;
   z-index: 20;
   left: 50%;
-  bottom: calc(26px + env(safe-area-inset-bottom));
+  bottom: calc(92px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   max-width: calc(100% - 32px);
   background: rgba(20, 22, 26, 0.94);
@@ -516,4 +516,199 @@ form {
   border-radius: 999px;
   text-align: center;
   animation: rise 0.2s ease-out;
+}
+
+/* ---------- التنقل السفلي ---------- */
+#viewWallet,
+#wallet,
+#viewGame {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tabs {
+  position: fixed;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+.tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  flex: 1;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 14px;
+  color: var(--hint);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-icon {
+  font-size: 22px;
+  line-height: 1.2;
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.tab[aria-current="page"] {
+  color: var(--accent);
+  background: var(--bg-secondary);
+}
+
+.tab[aria-current="page"] .tab-icon {
+  filter: none;
+  opacity: 1;
+}
+
+/* ---------- اللعبة ---------- */
+.game-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 78px;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  font-weight: 800;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+
+.stat-emoji {
+  font-size: 18px;
+}
+
+.stat-total {
+  color: var(--hint);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.game-status {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.game-status.win {
+  color: #1fa97a;
+}
+
+.game-status.lose {
+  color: var(--danger);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), 1fr);
+  gap: 9px;
+  direction: ltr;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tile {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  font-size: clamp(24px, 8.5vw, 38px);
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--text);
+  background: linear-gradient(155deg, #4a8df0 0%, #5b6cf2 55%, #7c5cf6 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -5px 0 rgba(0, 0, 0, 0.2), 0 5px 12px rgba(76, 110, 240, 0.28);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.tile:not(:disabled):active {
+  transform: scale(0.93);
+  filter: brightness(1.12);
+}
+
+.tile:disabled {
+  cursor: default;
+}
+
+.tile.open {
+  animation: flip 0.32s ease-out;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+}
+
+.tile.gem {
+  background: radial-gradient(circle at 50% 40%, rgba(46, 214, 163, 0.34), rgba(46, 214, 163, 0.08) 70%), var(--bg-secondary);
+}
+
+.tile.bomb {
+  background: radial-gradient(circle at 50% 40%, rgba(229, 72, 77, 0.36), rgba(229, 72, 77, 0.1) 70%), var(--bg-secondary);
+}
+
+.tile.hit {
+  box-shadow: inset 0 0 0 2.5px var(--danger), 0 0 18px rgba(229, 72, 77, 0.55);
+  animation: flip 0.32s ease-out, shake 0.4s ease-in-out 0.3s;
+}
+
+/* المربعات اللي انكشفت بعد نهاية الجولة وما ضغطها اللاعب */
+.tile.ghost {
+  opacity: 0.45;
+  animation: none;
+}
+
+@keyframes flip {
+  0% {
+    transform: rotateY(90deg) scale(0.9);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .tile.open,
+  .tile.hit {
+    animation: none;
+    transition: none;
+  }
 }

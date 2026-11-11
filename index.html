@@ -26,6 +26,7 @@
       <div id="ton-connect"></div>
     </header>
 
+    <div id="viewWallet">
     <!-- قبل ربط المحفظة -->
     <section class="card intro" id="intro">
       <div class="intro-icon" aria-hidden="true">◈</div>
@@ -55,7 +56,24 @@
       <div class="card coins" id="coins" aria-live="polite"></div>
       <p class="note" id="balanceNote" hidden></p>
     </section>
+    </div>
+
+    <!-- اللعبة -->
+    <section id="viewGame" hidden>
+      <div class="game-head">
+        <div class="stat"><span class="stat-emoji">💎</span><span id="gemCount">0</span><span class="stat-total" id="gemTotal"></span></div>
+        <div class="game-status" id="gameStatus" aria-live="polite">اختر مربع</div>
+        <div class="stat"><span class="stat-emoji">💣</span><span id="bombCount">0</span></div>
+      </div>
+      <div class="board" id="board" role="grid" aria-label="لوحة اللعبة"></div>
+      <button class="btn" id="newGameBtn" type="button">لعبة جديدة</button>
+    </section>
   </main>
+
+  <nav class="tabs" aria-label="التنقل">
+    <button class="tab" type="button" data-view="viewWallet" aria-current="page"><span class="tab-icon">👛</span>المحفظة</button>
+    <button class="tab" type="button" data-view="viewGame"><span class="tab-icon">💎</span>اللعبة</button>
+  </nav>
 
   <!-- نافذة الاستقبال -->
   <div class="sheet-backdrop" id="receiveSheet" hidden>
@@ -105,5 +123,6 @@
 
   <script src="lib.js"></script>
   <script src="app.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
