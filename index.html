@@ -5,22 +5,105 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <meta name="color-scheme" content="light dark">
   <title>LUO</title>
+  <link rel="icon" href="icon.png">
   <link rel="stylesheet" href="style.css">
+  <!-- الترتيب مهم: سكربت تلقرام قبل TON Connect -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="vendor/tonweb.js"></script>
+  <script src="vendor/qrcode.js"></script>
+  <script src="vendor/tonconnect-ui.min.js"></script>
 </head>
 <body>
-  <main class="app" id="app">
-    <header class="hero">
-      <div class="avatar" id="avatar" aria-hidden="true">L</div>
-      <h1 class="title">LUO</h1>
-      <p class="greeting" id="greeting">أهلًا بك</p>
+  <main class="app">
+    <header class="topbar">
+      <div class="who">
+        <div class="avatar" id="avatar" aria-hidden="true">L</div>
+        <div>
+          <div class="brand">LUO</div>
+          <div class="greeting" id="greeting">أهلًا بك</div>
+        </div>
+      </div>
+      <div id="ton-connect"></div>
     </header>
 
-    <section class="card" id="content">
-      <p class="muted" id="status">جاري التجهيز…</p>
+    <!-- قبل ربط المحفظة -->
+    <section class="card intro" id="intro">
+      <div class="intro-icon" aria-hidden="true">◈</div>
+      <h1>محفظتك في مكان واحد</h1>
+      <p>اربط محفظتك عشان تستقبل وترسل العملات الرقمية. مفاتيحك وفلوسك تبقى عندك أنت.</p>
+      <button class="btn" id="connectBtn" type="button">ربط المحفظة</button>
+    </section>
+
+    <!-- بعد ربط المحفظة -->
+    <section id="wallet" hidden>
+      <div class="card hero">
+        <div class="hero-label">عنوان محفظتك</div>
+        <button class="address" id="addressBtn" type="button" aria-label="نسخ العنوان">
+          <span id="addressShort" dir="ltr"></span>
+          <span class="copy-hint">نسخ</span>
+        </button>
+        <div class="actions">
+          <button class="btn" id="receiveBtn" type="button">↓ استقبال</button>
+          <button class="btn btn-ghost" id="sendBtn" type="button">↑ إرسال</button>
+        </div>
+      </div>
+
+      <div class="list-head">
+        <h2>العملات</h2>
+        <button class="link" id="refreshBtn" type="button">تحديث</button>
+      </div>
+      <div class="card coins" id="coins" aria-live="polite"></div>
+      <p class="note" id="balanceNote" hidden></p>
     </section>
   </main>
 
+  <!-- نافذة الاستقبال -->
+  <div class="sheet-backdrop" id="receiveSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="receiveTitle">
+      <div class="sheet-head">
+        <h2 id="receiveTitle">استقبال</h2>
+        <button class="close" type="button" data-close aria-label="إغلاق">×</button>
+      </div>
+      <div class="qr" id="qr"></div>
+      <div class="address-full" id="addressFull" dir="ltr"></div>
+      <button class="btn" id="copyFullBtn" type="button">نسخ العنوان</button>
+      <p class="note">هذا العنوان على شبكة TON فقط. إرسال عملات من شبكة ثانية (مثل USDT على TRC20 أو ERC20) يضيّعها.</p>
+    </div>
+  </div>
+
+  <!-- نافذة الإرسال -->
+  <div class="sheet-backdrop" id="sendSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sendTitle">
+      <div class="sheet-head">
+        <h2 id="sendTitle">إرسال</h2>
+        <button class="close" type="button" data-close aria-label="إغلاق">×</button>
+      </div>
+      <form id="sendForm" novalidate>
+        <label class="field-label">العملة</label>
+        <div class="chips" id="coinChips" role="radiogroup"></div>
+
+        <label class="field-label" for="toInput">عنوان المستلم (شبكة TON)</label>
+        <div class="input-row">
+          <input id="toInput" class="input" dir="ltr" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="UQ… أو EQ…">
+          <button class="mini" id="pasteBtn" type="button">لصق</button>
+        </div>
+
+        <label class="field-label" for="amountInput">المبلغ <span class="avail" id="available"></span></label>
+        <div class="input-row">
+          <input id="amountInput" class="input" dir="ltr" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00">
+          <button class="mini" id="maxBtn" type="button">الكل</button>
+        </div>
+
+        <p class="error" id="sendError" role="alert" hidden></p>
+        <button class="btn" id="submitBtn" type="submit">متابعة للتأكيد في المحفظة</button>
+        <p class="note">التحويل ما يتم إلا بعد ما تأكده من محفظتك، وما ينعكس بعد التأكيد.</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="lib.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
