@@ -92,6 +92,14 @@
         <span class="balance-brand"><span class="wordmark">Luo</span><span class="balance-label">رصيدك</span></span>
         <span class="balance-value"><span id="balanceValue">…</span> 💎</span>
       </div>
+      <div class="withdraw" id="withdrawBox" hidden>
+        <button class="btn btn-withdraw" id="withdrawBtn" type="button">💎 طلب سحب</button>
+        <form class="withdraw-form" id="withdrawForm" hidden novalidate>
+          <input id="withdrawWallet" class="input" dir="ltr" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200" placeholder="رابط أو عنوان محفظتك">
+          <button class="btn" id="withdrawSend" type="submit">إرسال الطلب</button>
+        </form>
+        <p class="note" id="withdrawNote" hidden></p>
+      </div>
       <div class="cards" id="cards" hidden></div>
       <div class="game-head">
         <div class="stat"><span class="stat-emoji">💎</span><span id="gemCount">0</span><span class="stat-total" id="gemTotal"></span></div>

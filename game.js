@@ -171,7 +171,7 @@
   var collectBtn = $("collectBtn");
 
   // بيانات الجلسة من السيرفر
-  var S = { online: false, reason: "", isAdmin: false, player: null, settings: { price: "", bombs: 5, enabled: true }, anns: [] };
+  var S = { online: false, reason: "", isAdmin: false, player: null, settings: { price: "", bombs: 5, enabled: true }, anns: [], withdraw: null };
   // الجولة الحالية: { kind: "real" | "demo", id, bombCount, opened: {}, found, score, over, busy, bombs, vals }
   var R = null;
   var phase = "idle"; // idle | paying | verifying
@@ -225,7 +225,62 @@
     var text = S.player ? A.group(S.player.balance) : "—";
     if (bump && el.textContent !== text) restartAnimation(el.parentNode, "bump");
     el.textContent = text;
+    renderWithdraw();
   }
+
+  /* ---------- طلب السحب ---------- */
+
+  var WITHDRAW_ERR = {
+    BAD_WALLET: "رابط المحفظة غير صحيح. الصقه كامل بدون مسافات.",
+    WITHDRAW_MIN: "رصيدك أقل من الحد المطلوب للسحب.",
+    WITHDRAW_PENDING: "عندك طلب سحب قيد المراجعة.",
+    NETWORK: "انقطع الاتصال. جرّب مرة ثانية."
+  };
+
+  // يظهر زر السحب إذا وصل الرصيد للحد، أو رسالة الانتظار إذا فيه طلب مرفوع
+  function renderWithdraw() {
+    var box = $("withdrawBox");
+    if (!box) return;
+    var w = S.withdraw;
+    var pending = Boolean(w && w.pending);
+    var can = Boolean(S.online && S.player && w && S.player.balance >= w.min);
+    box.hidden = !(pending || can);
+    $("withdrawBtn").hidden = pending || !can;
+    if (pending || !can) $("withdrawForm").hidden = true;
+    $("withdrawNote").hidden = !pending;
+    $("withdrawNote").textContent = pending ? "طلب السحب مرفوع وقيد المراجعة ✅" : "";
+  }
+
+  function initWithdraw() {
+    var form = $("withdrawForm");
+    if (!form) return;
+    $("withdrawBtn").addEventListener("click", function () {
+      form.hidden = !form.hidden;
+      if (!form.hidden) $("withdrawWallet").focus();
+    });
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      var send = $("withdrawSend");
+      var wallet = $("withdrawWallet").value.trim();
+      if (send.disabled) return;
+      if (wallet.length < 20) { A.toast(WITHDRAW_ERR.BAD_WALLET, 3500); return; }
+      send.disabled = true;
+      try {
+        await A.call("withdraw", { wallet: wallet });
+        S.withdraw.pending = true;
+        $("withdrawWallet").value = "";
+        A.toast("تم رفع طلب السحب");
+        A.haptic("success");
+      } catch (e) {
+        if (e.code === "WITHDRAW_PENDING") S.withdraw.pending = true;
+        A.toast(WITHDRAW_ERR[e.code] || "صار خطأ: " + (e.code || ""), 3500);
+        A.haptic("error");
+      }
+      send.disabled = false;
+      renderWithdraw();
+    });
+  }
+  initWithdraw();
 
   function updateButtons() {
     var playing = inRound();
@@ -670,6 +725,7 @@
           S.online = true;
           S.reason = "";
           S.settings = data.settings;
+          S.withdraw = data.withdraw || null;
           S.anns = data.announcements || [];
         }
         document.dispatchEvent(new CustomEvent("luo:session", { detail: { isAdmin: S.isAdmin } }));
