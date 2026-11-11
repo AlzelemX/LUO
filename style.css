@@ -112,6 +112,7 @@ p {
 
 #viewWallet,
 #wallet,
+#viewAdmin,
 #viewGame {
   display: flex;
   flex-direction: column;
@@ -897,7 +898,17 @@ body::after {
 }
 
 /* صفحة اللعبة تاخذ الشاشة كاملة: نخفي الشريط العلوي ونحجّم اللوحة عشان كل شي يبان بدون سكرول */
-body[data-view="viewGame"] .topbar {
+body[data-view="viewGame"] .topbar,
+body[data-view="viewAdmin"] .topbar {
+  display: none;
+}
+
+/* لما فيه بطاقات إعلانات واللاعب مو في جولة، اللوحة تصغر شوي عشان كل شي يبان */
+#viewGame.has-cards:not(.in-round) .board {
+  width: min(100%, max(220px, calc(var(--tg-viewport-stable-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 392px - 92px)));
+}
+
+#viewGame.in-round .cards {
   display: none;
 }
 
@@ -1207,4 +1218,491 @@ body[data-view="viewGame"] .topbar {
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------- بطاقات الإعلانات ---------- */
+.cards {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  margin-inline: -16px;
+  padding-inline: 16px;
+}
+
+.cards::-webkit-scrollbar {
+  display: none;
+}
+
+.ann {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.cards > .ann:not(:only-child) {
+  flex-basis: 88%;
+}
+
+.ann-free_game {
+  border-color: rgba(255, 201, 74, 0.55);
+  background: linear-gradient(135deg, rgba(255, 201, 74, 0.2), rgba(169, 92, 255, 0.14)), var(--surface);
+}
+
+.ann-ad {
+  border-color: rgba(111, 141, 255, 0.5);
+}
+
+.ann-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: var(--surface-2);
+}
+
+.ann-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ann-title {
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.ann-body {
+  color: var(--hint);
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ann-btn {
+  appearance: none;
+  flex: none;
+  border: 0;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--grad);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ann-free_game .ann-btn {
+  background: var(--gold);
+  color: #10131f;
+}
+
+.ann-btn:disabled {
+  opacity: 0.5;
+}
+
+.ann-close {
+  appearance: none;
+  flex: none;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--hint);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.game-actions .btn-free {
+  flex: none;
+  width: auto;
+  padding-inline: 14px;
+  background: var(--gold);
+  color: #10131f;
+  box-shadow: 0 8px 20px rgba(255, 201, 74, 0.3);
+}
+
+/* مربع ينتظر رد السيرفر */
+.tile.wait {
+  animation: wait-pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes wait-pulse {
+  50% {
+    filter: brightness(1.35);
+    transform: scale(0.94);
+  }
+}
+
+/* ---------- لوحة صاحب البوت ---------- */
+.a-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#admin {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.a-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.a-seg-btn {
+  appearance: none;
+  flex: 1;
+  border: 0;
+  padding: 9px 4px;
+  border-radius: 10px;
+  background: none;
+  color: var(--hint);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.a-seg-btn[aria-selected="true"] {
+  background: var(--grad);
+  color: #fff;
+}
+
+.a-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.a-stat {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.sheet .a-stat {
+  background: var(--surface-2);
+}
+
+.a-stat-value {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.a-stat-label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.a-stat-sub {
+  color: var(--hint);
+  font-size: 12px;
+}
+
+.a-search {
+  display: flex;
+  gap: 8px;
+}
+
+.a-search .f-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.a-search .a-sort {
+  flex: none;
+  width: auto;
+}
+
+.f {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.f-label {
+  font-size: 13px;
+  color: var(--hint);
+}
+
+.f-hint {
+  font-size: 12px;
+  color: var(--hint);
+}
+
+.f-input {
+  appearance: none;
+  width: 100%;
+  border: 1.5px solid transparent;
+  outline: 0;
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.f-input:focus {
+  border-color: var(--accent);
+}
+
+textarea.f-input {
+  resize: vertical;
+  min-height: 62px;
+}
+
+.a-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.a-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.a-switch input {
+  width: 22px;
+  height: 22px;
+  accent-color: #6f8dff;
+  flex: none;
+}
+
+.a-list {
+  padding: 4px 14px;
+}
+
+.a-row {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 0;
+  cursor: pointer;
+}
+
+.a-row + .a-row {
+  border-top: 1px solid var(--line);
+}
+
+.a-row-main {
+  min-width: 0;
+}
+
+.a-row-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.a-row-sub {
+  color: var(--hint);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.a-row-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.a-row-balance {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.badge.ok {
+  color: #0d3b2b;
+  background: var(--gem);
+}
+
+.badge.warn {
+  color: #3b2a00;
+  background: var(--gold);
+}
+
+.badge.bad {
+  color: #fff;
+  background: var(--danger);
+}
+
+.a-verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-size: 13.5px;
+  border-inline-start: 4px solid var(--gem);
+}
+
+.a-verdict.warn {
+  border-color: var(--gold);
+}
+
+.a-verdict.bad {
+  border-color: var(--danger);
+}
+
+.a-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 10px;
+  align-items: end;
+}
+
+.a-actions.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.a-actions .btn {
+  width: auto;
+  padding: 12px 16px;
+  box-shadow: none;
+}
+
+.btn-quiet {
+  background: var(--surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+}
+
+.btn-danger {
+  background: var(--danger);
+  box-shadow: none;
+}
+
+.a-history h3 {
+  margin: 14px 0 6px;
+  font-size: 14px;
+}
+
+.a-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.a-line-side {
+  color: var(--hint);
+  text-align: end;
+}
+
+.a-gems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.a-gem {
+  display: grid;
+  grid-template-columns: 1fr 1fr 58px 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.a-gem-head {
+  color: var(--hint);
+  font-size: 12.5px;
+}
+
+.a-gem-pct {
+  font-size: 13px;
+  font-weight: 700;
+  direction: ltr;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.a-x {
+  appearance: none;
+  border: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--hint);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.a-ann {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+}
+
+.a-ann.off {
+  opacity: 0.55;
+}
+
+.a-ann-kind {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--hint);
 }

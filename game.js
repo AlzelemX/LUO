@@ -1,44 +1,50 @@
-/* التنقل بين الصفحات + لعبة الجواهر والقنابل */
+/*
+ * التنقل + اللعبة.
+ * الجولات الحقيقية (مدفوعة ومجانية) تنحسب في السيرفر: أماكن القنابل وقيم الجواهر ما توصل
+ * للجوال إلا بعد ما ينفتح المربع أو تنتهي الجولة، والرصيد ينحفظ في السيرفر فقط.
+ * جولة التجربة محلية بالكامل وما لها أي أثر.
+ */
 (function () {
   "use strict";
 
-  var COLS = 5;
-  var ROWS = 5;
-  var BOMBS = 5;
-  var TOTAL = COLS * ROWS;
-  var GEMS = TOTAL - BOMBS;
-
+  var A = window.LuoApi;
+  var h = A.h;
+  var haptic = A.haptic;
   var $ = function (id) { return document.getElementById(id); };
-  var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-  function haptic(kind) {
-    try {
-      if (!tg || !tg.HapticFeedback) return;
-      if (kind === "success" || kind === "error") tg.HapticFeedback.notificationOccurred(kind);
-      else tg.HapticFeedback.impactOccurred(kind || "light");
-    } catch (e) { /* غير مدعوم */ }
-  }
+  var CELLS = 25;
+  var COLS = 5;
+  var DEMO_GEM_VALUES = [[1, 300], [2, 220], [5, 170], [10, 120], [25, 80], [50, 50], [100, 30], [250, 17], [500, 9], [1000, 4]];
+  var RARE_FROM = 100;
+  var TOP_FROM = 1000;
+  var VERIFY_EVERY_MS = 4000;
+  var VERIFY_TRIES = 30;
+  var PAID_MARK_TTL_MS = 10 * 60 * 1000;
 
   /* ---------- التنقل ---------- */
 
-  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
-  tabs.forEach(function (tab) {
+  function showView(id) {
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (t) {
+      var active = t.getAttribute("data-view") === id;
+      var el = $(t.getAttribute("data-view"));
+      if (el) el.hidden = !active;
+      if (active) t.setAttribute("aria-current", "page");
+      else t.removeAttribute("aria-current");
+    });
+    document.body.setAttribute("data-view", id);
+    window.scrollTo(0, 0);
+    document.dispatchEvent(new CustomEvent("luo:view", { detail: id }));
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (tab) {
     tab.addEventListener("click", function () {
-      tabs.forEach(function (t) {
-        var active = t === tab;
-        $(t.getAttribute("data-view")).hidden = !active;
-        if (active) t.setAttribute("aria-current", "page");
-        else t.removeAttribute("aria-current");
-      });
-      document.body.setAttribute("data-view", tab.getAttribute("data-view"));
-      window.scrollTo(0, 0);
+      showView(tab.getAttribute("data-view"));
       haptic("light");
     });
   });
 
-  /* ---------- العشوائية ---------- */
+  /* ---------- عشوائية جولة التجربة ---------- */
 
-  // عدد صحيح عشوائي في [0, max) بدون انحياز (rejection sampling)
   function randomInt(max) {
     var cryptoObj = window.crypto || window.msCrypto;
     if (!cryptoObj || !cryptoObj.getRandomValues) return Math.floor(Math.random() * max);
@@ -51,193 +57,29 @@
     return buf[0] % max;
   }
 
-  // يرجع مصفوفة منطقية: true = قنبلة (خلط Fisher–Yates)
-  function dealBoard() {
-    var cells = [];
-    for (var i = 0; i < TOTAL; i++) cells.push(i < BOMBS);
-    for (var j = TOTAL - 1; j > 0; j--) {
-      var k = randomInt(j + 1);
-      var tmp = cells[j];
-      cells[j] = cells[k];
-      cells[k] = tmp;
+  function dealDemo(bombCount) {
+    var isBomb = [];
+    var i;
+    for (i = 0; i < CELLS; i++) isBomb.push(i < bombCount);
+    for (i = CELLS - 1; i > 0; i--) {
+      var k = randomInt(i + 1);
+      var tmp = isBomb[i];
+      isBomb[i] = isBomb[k];
+      isBomb[k] = tmp;
     }
-    return cells;
-  }
-
-  /* ---------- قيم الجواهر ---------- */
-
-  var DEFAULT_GEM_VALUES = [[1, 300], [2, 220], [5, 170], [10, 120], [25, 80], [50, 50], [100, 30], [250, 17], [500, 9], [1000, 4]];
-
-  // يتحقق من الجدول القادم من الإعدادات؛ أي خلل يرجّعنا للقيم الافتراضية
-  function readGemTable(raw) {
-    if (!Array.isArray(raw) || raw.length === 0) return null;
-    var table = [];
-    var total = 0;
-    for (var i = 0; i < raw.length; i++) {
-      var row = raw[i];
-      if (!Array.isArray(row) || row.length !== 2) return null;
-      var value = row[0];
-      var weight = row[1];
-      if (!Number.isSafeInteger(value) || value <= 0) return null;
-      if (!Number.isSafeInteger(weight) || weight <= 0) return null;
-      total += weight;
-      table.push({ value: value, weight: weight });
-    }
-    if (!Number.isSafeInteger(total) || total > 0x7fffffff) return null;
-    return { rows: table, total: total };
-  }
-
-  var gemCfg = (window.LUO_CONFIG && window.LUO_CONFIG.game && window.LUO_CONFIG.game.gemValues) || null;
-  var gemTable = readGemTable(gemCfg);
-  if (!gemTable) {
-    if (gemCfg) console.error("Invalid gemValues config, using defaults.");
-    gemTable = readGemTable(DEFAULT_GEM_VALUES);
-  }
-  var maxGemValue = gemTable.rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0);
-
-  // يسحب قيمة جوهرة حسب الأوزان
-  function drawGemValue() {
-    var pick = randomInt(gemTable.total);
-    for (var i = 0; i < gemTable.rows.length; i++) {
-      pick -= gemTable.rows[i].weight;
-      if (pick < 0) return gemTable.rows[i].value;
-    }
-    return gemTable.rows[gemTable.rows.length - 1].value;
-  }
-
-  /* ---------- الرصيد المحفوظ ---------- */
-
-  /*
-   * رصيد نقاط داخل اللعبة فقط: ما له قيمة مالية وما له علاقة بالمحفظة.
-   * يُحفظ في Telegram CloudStorage (مربوط بحساب المستخدم ويتزامن بين أجهزته)،
-   * وخارج تلقرام يُحفظ في المتصفح. التخزين من جهة المستخدم، يعني يقدر يعدّله.
-   */
-  var BALANCE_KEY = "luo_balance";
-  var PENDING_KEY = "luo_balance_pending";
-  var STORE_TIMEOUT_MS = 8000;
-  var MAX_BALANCE = 999999999999999; // 15 خانة، أقل من حد الأعداد الصحيحة الآمنة
-
-  var useCloud = false;
-  try {
-    useCloud = Boolean(tg && tg.initData && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast("6.9"));
-  } catch (e) { useCloud = false; }
-
-  function withTimeout(run) {
-    return new Promise(function (resolve, reject) {
-      var done = false;
-      var timer = setTimeout(function () {
-        if (!done) { done = true; reject(new Error("STORE_TIMEOUT")); }
-      }, STORE_TIMEOUT_MS);
-      function settle(fn, value) {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        fn(value);
+    var total = DEMO_GEM_VALUES.reduce(function (t, r) { return t + r[1]; }, 0);
+    var bombs = [];
+    var vals = isBomb.map(function (b, idx) {
+      if (b) { bombs.push(idx); return 0; }
+      var pick = randomInt(total);
+      for (var j = 0; j < DEMO_GEM_VALUES.length; j++) {
+        pick -= DEMO_GEM_VALUES[j][1];
+        if (pick < 0) return DEMO_GEM_VALUES[j][0];
       }
-      try {
-        run(function (v) { settle(resolve, v); }, function (e) { settle(reject, e); });
-      } catch (e) {
-        settle(reject, e);
-      }
+      return DEMO_GEM_VALUES[0][0];
     });
+    return { bombs: bombs, vals: vals };
   }
-
-  function storeGet(key) {
-    return withTimeout(function (resolve, reject) {
-      if (useCloud) {
-        tg.CloudStorage.getItem(key, function (err, value) {
-          if (err) reject(new Error(String(err)));
-          else resolve(value || "");
-        });
-      } else {
-        resolve(window.localStorage.getItem(key) || "");
-      }
-    });
-  }
-
-  function storeSet(key, value) {
-    return withTimeout(function (resolve, reject) {
-      if (useCloud) {
-        tg.CloudStorage.setItem(key, value, function (err, ok) {
-          if (err || ok === false) reject(new Error(String(err || "STORE_FAILED")));
-          else resolve();
-        });
-      } else {
-        window.localStorage.setItem(key, value);
-        resolve();
-      }
-    });
-  }
-
-  function parseBalance(raw) {
-    var str = String(raw == null ? "" : raw);
-    if (!/^\d{1,15}$/.test(str)) return 0;
-    return Number(str);
-  }
-
-  // نقاط فاز فيها اللاعب وما تأكد حفظها بعد؛ نسخة منها في المتصفح عشان ما تضيع لو انقفل التطبيق
-  function readPending() {
-    try { return parseBalance(window.localStorage.getItem(PENDING_KEY)); } catch (e) { return 0; }
-  }
-
-  function writePending(n) {
-    try {
-      if (n > 0) window.localStorage.setItem(PENDING_KEY, String(n));
-      else window.localStorage.removeItem(PENDING_KEY);
-    } catch (e) { /* التخزين المحلي غير متاح */ }
-  }
-
-  var savedBalance = null; // آخر قيمة مؤكدة من التخزين (null = ما انقرأت)
-  var pending = readPending();
-  var syncing = null;
-
-  function renderBalance(saveFailed) {
-    var el = $("balanceValue");
-    var text = savedBalance === null && pending === 0 ? "…" : String(Math.min((savedBalance || 0) + pending, MAX_BALANCE));
-    if (el.textContent !== text && el.textContent !== "…") restartAnimation(el.parentNode, "bump");
-    el.textContent = text;
-    $("gameBalanceNote").hidden = !saveFailed;
-  }
-
-  // يقرأ الرصيد من التخزين، يضيف عليه المعلّق، ويحفظ. استدعاء واحد في نفس الوقت.
-  function syncBalance() {
-    if (syncing) return syncing;
-    syncing = (async function () {
-      var failed = false;
-      try {
-        var current = parseBalance(await storeGet(BALANCE_KEY));
-        var adding = pending;
-        if (adding > 0) {
-          var next = Math.min(current + adding, MAX_BALANCE);
-          await storeSet(BALANCE_KEY, String(next));
-          pending -= adding;
-          writePending(pending);
-          current = next;
-        }
-        savedBalance = current;
-      } catch (e) {
-        failed = true;
-        console.error("Balance sync failed:", e);
-      }
-      syncing = null;
-      renderBalance(failed);
-      if (!failed && pending > 0) return syncBalance(); // فوز جديد وصل أثناء الحفظ
-    })();
-    return syncing;
-  }
-
-  function addToBalance(amount) {
-    if (!Number.isSafeInteger(amount) || amount <= 0) return;
-    pending = Math.min(pending + amount, MAX_BALANCE);
-    writePending(pending);
-    renderBalance(false);
-    syncBalance();
-  }
-
-  // إعادة المحاولة لما يرجع المستخدم للتطبيق
-  document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && (pending > 0 || savedBalance === null)) syncBalance();
-  });
 
   /* ---------- المؤثرات ---------- */
 
@@ -251,19 +93,15 @@
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, ms);
   }
 
-  // رقم يطلع من المربع ويختفي
   function floatText(fromEl, text, gold) {
     if (reduceMotion) return;
     var r = fromEl.getBoundingClientRect();
-    var el = document.createElement("div");
-    el.className = "fx-float" + (gold ? " gold" : "");
-    el.textContent = text;
+    var el = h("div", { class: "fx-float" + (gold ? " gold" : ""), text: text });
     el.style.left = r.left + r.width / 2 + "px";
     el.style.top = r.top + r.height / 2 + "px";
     fxAdd(el, 1000);
   }
 
-  // قصاصات ملونة تنفجر من عنصر
   function burst(fromEl, count) {
     if (reduceMotion) return;
     var r = fromEl.getBoundingClientRect();
@@ -271,8 +109,7 @@
     var cy = r.top + r.height / 2;
     var colors = ["#38a4ff", "#6a6cff", "#a95cff", "#2ee6a8", "#ffc94a", "#ffffff"];
     for (var i = 0; i < count; i++) {
-      var bit = document.createElement("i");
-      bit.className = "fx-bit";
+      var bit = h("i", { class: "fx-bit" });
       var angle = Math.random() * Math.PI * 2;
       var dist = 90 + Math.random() * 190;
       bit.style.left = cx + "px";
@@ -287,93 +124,87 @@
   }
 
   function flashRed() {
-    if (reduceMotion) return;
-    var el = document.createElement("div");
-    el.className = "fx-flash";
-    fxAdd(el, 600);
+    if (!reduceMotion) fxAdd(h("div", { class: "fx-flash" }), 600);
   }
 
   function restartAnimation(el, cls) {
     el.classList.remove(cls);
-    void el.offsetWidth; // يعيد تشغيل الأنيميشن
+    void el.offsetWidth;
     el.classList.add(cls);
   }
 
-  // عدّاد يتحرك من القيمة المعروضة للقيمة الجديدة
   var counters = {};
   function countTo(id, target) {
     var el = $(id);
-    var state = counters[id] || (counters[id] = { shown: 0, raf: 0 });
-    cancelAnimationFrame(state.raf);
-    if (reduceMotion) { state.shown = target; el.textContent = String(target); return; }
-    var from = state.shown;
+    var c = counters[id] || (counters[id] = { shown: 0, raf: 0 });
+    cancelAnimationFrame(c.raf);
+    if (reduceMotion) { c.shown = target; el.textContent = String(target); return; }
+    var from = c.shown;
     var start = 0;
-    var duration = 380;
     function step(ts) {
       if (!start) start = ts;
-      var t = Math.min(1, (ts - start) / duration);
-      var eased = 1 - Math.pow(1 - t, 3);
-      state.shown = Math.round(from + (target - from) * eased);
-      el.textContent = String(state.shown);
-      if (t < 1) state.raf = requestAnimationFrame(step);
+      var t = Math.min(1, (ts - start) / 380);
+      c.shown = Math.round(from + (target - from) * (1 - Math.pow(1 - t, 3)));
+      el.textContent = String(c.shown);
+      if (t < 1) c.raf = requestAnimationFrame(step);
     }
-    state.raf = requestAnimationFrame(step);
+    c.raf = requestAnimationFrame(step);
   }
 
   function setCount(id, value) {
-    var state = counters[id] || (counters[id] = { shown: 0, raf: 0 });
-    cancelAnimationFrame(state.raf);
-    state.shown = value;
+    var c = counters[id] || (counters[id] = { shown: 0, raf: 0 });
+    cancelAnimationFrame(c.raf);
+    c.shown = value;
     $(id).textContent = String(value);
   }
 
-  /* ---------- اللعبة ---------- */
+  /* ---------- الحالة ---------- */
 
   var board = $("board");
+  var view = $("viewGame");
   var statusEl = $("gameStatus");
-  var newBtn = $("newGameBtn");
-  var collectBtn = $("collectBtn");
-  var demoBtn = $("demoBtn");
-  var demo = false; // جولة تجربة: بدون دفع، ونقاطها ما تنضاف للرصيد ولا تنحفظ
   var scoreEl = $("scoreValue");
   var noteEl = $("gameNote");
-  var bombs = [];
-  var values = []; // قيمة الجوهرة في كل مربع (0 للقنبلة)
-  var opened = [];
-  var found = 0;
-  var score = 0;
-  var over = true; // ما فيه جولة شغالة
-  var busy = false; // بانتظار تأكيد الدفع
+  var newBtn = $("newGameBtn");
+  var freeBtn = $("freeBtn");
+  var demoBtn = $("demoBtn");
+  var collectBtn = $("collectBtn");
 
-  /* ---------- إعداد السعر ---------- */
+  // بيانات الجلسة من السيرفر
+  var S = { online: false, reason: "", isAdmin: false, player: null, settings: { price: "", bombs: 5, enabled: true }, anns: [] };
+  // الجولة الحالية: { kind: "real" | "demo", id, bombCount, opened: {}, found, score, over, busy, bombs, vals }
+  var R = null;
+  var phase = "idle"; // idle | paying | verifying
+  var verifyToken = 0;
 
-  var Lib = window.LuoLib;
-  var cfg = (window.LUO_CONFIG && window.LUO_CONFIG.game) || {};
-  var payTo = String(cfg.payTo || "").trim();
-  var paid = payTo !== "";
-  var priceNano = 0n;
-  var priceLabel = "";
-  var configError = false;
+  var OFFLINE_TEXT = {
+    NOT_IN_TELEGRAM: "افتح التطبيق من داخل تلقرام عشان تلعب لعبة حقيقية.",
+    NOT_CONFIGURED: "اللعبة الحقيقية تتفعّل قريب. جرّب وضع التجربة.",
+    HTTP_503: "اللعبة الحقيقية تتفعّل قريب. جرّب وضع التجربة.",
+    UNAUTHORIZED: "انتهت الجلسة. سكّر التطبيق وافتحه من جديد.",
+    NETWORK: "ما فيه اتصال بالسيرفر. تأكد من النت.",
+    BANNED: "حسابك موقوف من صاحب البوت.",
+    NO_API: "اللعبة الحقيقية غير مفعّلة."
+  };
 
-  if (paid) {
-    try {
-      if (!Lib || !Lib.parseAddress(payTo)) throw new Error("bad payTo");
-      priceNano = Lib.parseAmount(cfg.price, 9);
-      priceLabel = Lib.formatUnits(priceNano, 9) + " TON";
-    } catch (e) {
-      // إعداد غلط: نقفل اللعبة بدل ما نرسل فلوس لعنوان خطأ
-      configError = true;
-      console.error("Invalid game payment config:", e);
-    }
-  }
-
-  var PAY_ERRORS = {
+  var ERROR_TEXT = {
     NOT_CONNECTED: "اربط محفظتك أول عشان تلعب.",
     BUSY: "فيه عملية ثانية شغالة، انتظر شوي.",
     BALANCE_LOW: "رصيدك من TON ما يكفي لسعر الجولة.",
     REJECTED: "ألغيت الدفع من المحفظة.",
-    FAILED: "ما تم الدفع. جرّب مرة ثانية."
+    FAILED: "ما تم الدفع. جرّب مرة ثانية.",
+    GAME_DISABLED: "اللعبة موقفة مؤقتًا من صاحب البوت.",
+    NO_FREE_PLAYS: "ما عندك جولات مجانية.",
+    NETWORK: "انقطع الاتصال. جرّب مرة ثانية.",
+    BANNED: "حسابك موقوف من صاحب البوت.",
+    UNAUTHORIZED: "انتهت الجلسة. سكّر التطبيق وافتحه من جديد.",
+    ANNOUNCEMENT_GONE: "هذا العرض انتهى.",
+    ALREADY_CLAIMED: "استلمت هذا العرض من قبل."
   };
+
+  function errorText(e) {
+    return ERROR_TEXT[e && e.code] || "صار خطأ. جرّب مرة ثانية.";
+  }
 
   function setStatus(text, cls) {
     statusEl.textContent = text;
@@ -385,213 +216,503 @@
     noteEl.hidden = !text;
   }
 
-  function updateButton() {
-    // أثناء الجولة: زر «اجمع ووقّف» بدل «لعبة جديدة»
-    var inRound = !over && !configError;
-    collectBtn.hidden = !inRound;
-    // في جولة التجربة يبقى زر اللعبة الحقيقية ظاهر عشان اللاعب يقدر ينتقل لها مباشرة
-    newBtn.hidden = inRound && !demo;
-    demoBtn.hidden = !(paid && !configError && over);
-    demoBtn.disabled = busy;
-    if (inRound) {
-      var collectLabel = demo ? "اجمع (تجربة)" : "اجمع ووقّف";
-      collectBtn.disabled = found === 0;
-      collectBtn.textContent = found === 0 ? collectLabel : collectLabel + " · +" + score;
-      if (!demo) return;
+  function inRound() {
+    return Boolean(R && !R.over);
+  }
+
+  function renderBalance(bump) {
+    var el = $("balanceValue");
+    var text = S.player ? A.group(S.player.balance) : "—";
+    if (bump && el.textContent !== text) restartAnimation(el.parentNode, "bump");
+    el.textContent = text;
+  }
+
+  function updateButtons() {
+    var playing = inRound();
+    var demo = playing && R.kind === "demo";
+    view.classList.toggle("in-round", playing);
+    view.classList.toggle("demo", demo);
+    $("demoChip").hidden = !demo;
+
+    collectBtn.hidden = !playing;
+    if (playing) {
+      var label = demo ? "اجمع (تجربة)" : "اجمع ووقّف";
+      collectBtn.disabled = R.found === 0 || R.busy;
+      collectBtn.textContent = R.found === 0 ? label : label + " · +" + R.score;
     }
-    if (configError) {
+
+    // في جولة التجربة يبقى زر اللعبة الحقيقية ظاهر
+    newBtn.hidden = playing && !demo;
+    var price = S.settings.price ? " · " + S.settings.price + " TON" : "";
+    if (!S.online) {
       newBtn.disabled = true;
-      newBtn.textContent = "اللعبة غير متاحة الحين";
-      return;
-    }
-    if (busy) {
+      newBtn.textContent = "لعبة حقيقية";
+    } else if (!S.settings.enabled) {
+      newBtn.disabled = true;
+      newBtn.textContent = "اللعبة موقفة مؤقتًا";
+    } else if (phase === "paying") {
       newBtn.disabled = true;
       newBtn.textContent = "أكّد الدفع من محفظتك…";
-      return;
+    } else if (phase === "verifying") {
+      newBtn.disabled = true;
+      newBtn.textContent = "نتحقق من وصول الدفعة…";
+    } else {
+      newBtn.disabled = false;
+      newBtn.textContent = (demo ? "لعبة حقيقية" : "لعبة جديدة") + price;
     }
-    newBtn.disabled = false;
-    newBtn.textContent = paid ? (inRound && demo ? "لعبة حقيقية · " : "لعبة جديدة · ") + priceLabel : "لعبة جديدة";
+
+    var free = S.online && S.player ? S.player.freePlays : 0;
+    freeBtn.hidden = playing || free <= 0 || !S.settings.enabled;
+    freeBtn.disabled = phase !== "idle";
+    freeBtn.textContent = "🎁 مجانية ×" + free;
+
+    demoBtn.hidden = playing;
+    demoBtn.disabled = phase !== "idle";
   }
 
-  function paint(tile, index, byPlayer) {
-    var isBomb = bombs[index];
+  /* ---------- اللوحة ---------- */
+
+  function paint(tile, kind, value, byPlayer) {
     tile.textContent = "";
-    var icon = document.createElement("span");
-    icon.className = "tile-icon";
-    icon.textContent = isBomb ? "💣" : "💎";
-    tile.appendChild(icon);
-    if (!isBomb) {
-      var val = document.createElement("span");
-      val.className = "tile-value";
-      val.textContent = String(values[index]);
-      tile.appendChild(val);
-      if (values[index] >= maxGemValue) tile.classList.add("top");
-      else if (values[index] * 10 >= maxGemValue) tile.classList.add("rare");
+    tile.appendChild(h("span", { class: "tile-icon", text: kind === "bomb" ? "💣" : "💎" }));
+    if (kind === "gem") {
+      tile.appendChild(h("span", { class: "tile-value", text: String(value) }));
+      if (value >= TOP_FROM) tile.classList.add("top");
+      else if (value >= RARE_FROM) tile.classList.add("rare");
     }
     tile.disabled = true;
-    tile.classList.add("open", isBomb ? "bomb" : "gem");
+    tile.classList.remove("wait");
+    tile.classList.add("open", kind);
     if (!byPlayer) tile.classList.add("ghost");
-    tile.setAttribute("aria-label", isBomb ? "قنبلة" : "جوهرة " + values[index]);
+    tile.setAttribute("aria-label", kind === "bomb" ? "قنبلة" : "جوهرة " + value);
   }
 
-  function finish() {
-    over = true;
-    var tiles = board.children;
-    var order = 0;
-    for (var i = 0; i < TOTAL; i++) {
-      if (opened[i]) continue;
-      tiles[i].style.setProperty("--i", String(order++));
-      paint(tiles[i], i, false);
-    }
-    updateButton();
-  }
-
-  function onTile(index, tile) {
-    if (over || opened[index]) return;
-    opened[index] = true;
-    paint(tile, index, true);
-
-    if (bombs[index]) {
-      tile.classList.add("hit");
-      haptic("error");
-      flashRed();
-      restartAnimation(board, "shake");
-      // القنبلة تضيّع كل اللي انجمع في هذه الجولة
-      score = 0;
-      scoreEl.classList.add("lost");
-      countTo("scoreValue", 0);
-      setStatus(demo ? "💥 خسرت (تجربة)" : "💥 خسرت!", "lose");
-      finish();
-      return;
-    }
-
-    found++;
-    score += values[index];
-    $("gemCount").textContent = String(found);
-    countTo("scoreValue", score);
-    var big = values[index] * 10 >= maxGemValue;
-    floatText(tile, "+" + values[index], big);
-    if (big) burst(tile, values[index] >= maxGemValue ? 44 : 16);
-    if (values[index] >= maxGemValue) haptic("success");
-    if (found === GEMS) {
-      haptic("success");
-      setStatus(demo ? "🏆 فزت (تجربة)" : "🏆 فزت! +" + score, "win");
-      scoreEl.classList.add("won");
-      burst(board, 70);
-      if (!demo) addToBalance(score);
-      finish();
-    } else {
-      haptic("light");
-      setStatus("كمّل أو اجمع");
-      updateButton();
-    }
-  }
-
-  // اللاعب يوقف وياخذ اللي جمعه قبل ما يضرب قنبلة
-  function collect() {
-    if (over || found === 0) return;
-    haptic("success");
-    setStatus(demo ? "تجربة: ما تنحسب" : "✅ جمعت +" + score, "win");
-    scoreEl.classList.add("won");
-    burst(collectBtn, 60);
-    if (!demo) addToBalance(score);
-    finish();
-  }
-
-  // يرسم لوحة مقفلة (قبل بدء أي جولة)
   function drawBoard(locked) {
     board.style.setProperty("--cols", String(COLS));
     board.classList.toggle("locked", locked);
     board.textContent = "";
-    for (var i = 0; i < TOTAL; i++) {
-      var tile = document.createElement("button");
-      tile.type = "button";
-      tile.className = "tile";
+    for (var i = 0; i < CELLS; i++) {
+      var tile = h("button", { type: "button", class: "tile", "aria-label": "مربع مغلق", disabled: locked });
       tile.style.setProperty("--i", String(i));
-      tile.disabled = locked;
-      tile.setAttribute("aria-label", "مربع مغلق");
       if (!locked) tile.addEventListener("click", onTile.bind(null, i, tile));
       board.appendChild(tile);
     }
+  }
+
+  function resetCounters(bombCount) {
     $("gemCount").textContent = "0";
+    $("gemTotal").textContent = "/" + (CELLS - bombCount);
+    $("bombCount").textContent = String(bombCount);
     setCount("scoreValue", 0);
     scoreEl.classList.remove("lost", "won");
-    $("gemTotal").textContent = "/" + GEMS;
-    $("bombCount").textContent = String(BOMBS);
   }
 
-  function startRound(isDemo) {
-    demo = Boolean(isDemo);
-    $("viewGame").classList.toggle("demo", demo);
-    $("demoChip").hidden = !demo;
-    bombs = dealBoard();
-    values = bombs.map(function (isBomb) { return isBomb ? 0 : drawGemValue(); });
-    opened = [];
-    found = 0;
-    score = 0;
-    over = false;
+  // يكشف باقي اللوحة بعد نهاية الجولة
+  function reveal(bombs, vals) {
+    var tiles = board.children;
+    var order = 0;
+    for (var i = 0; i < CELLS; i++) {
+      if (R.opened[i]) continue;
+      tiles[i].style.setProperty("--i", String(order++));
+      var isBomb = bombs.indexOf(i) !== -1;
+      paint(tiles[i], isBomb ? "bomb" : "gem", vals[i], false);
+    }
+  }
+
+  function endRound(bombs, vals) {
+    R.over = true;
+    R.busy = false;
+    reveal(bombs, vals);
+    updateButtons();
+  }
+
+  function showGem(i, tile, value, score) {
+    R.opened[i] = true;
+    R.found++;
+    R.score = score;
+    paint(tile, "gem", value, true);
+    $("gemCount").textContent = String(R.found);
+    countTo("scoreValue", score);
+    var big = value >= RARE_FROM;
+    floatText(tile, "+" + value, big);
+    if (big) burst(tile, value >= TOP_FROM ? 44 : 16);
+    haptic(value >= TOP_FROM ? "success" : "light");
+  }
+
+  function showBomb(i, tile, bombs, vals) {
+    R.opened[i] = true;
+    R.score = 0;
+    paint(tile, "bomb", 0, true);
+    tile.classList.add("hit");
+    haptic("error");
+    flashRed();
+    restartAnimation(board, "shake");
+    scoreEl.classList.add("lost");
+    countTo("scoreValue", 0);
+    setStatus(R.kind === "demo" ? "💥 خسرت (تجربة)" : "💥 خسرت!", "lose");
+    endRound(bombs, vals);
+  }
+
+  function showWin(bombs, vals) {
+    haptic("success");
+    setStatus(R.kind === "demo" ? "🏆 فزت (تجربة)" : "🏆 فزت! +" + R.score, "win");
+    scoreEl.classList.add("won");
+    burst(board, 70);
+    endRound(bombs, vals);
+  }
+
+  function showCollected(bombs, vals) {
+    haptic("success");
+    setStatus(R.kind === "demo" ? "تجربة: ما تنحسب" : "✅ جمعت +" + R.score, "win");
+    scoreEl.classList.add("won");
+    burst(collectBtn, 60);
+    endRound(bombs, vals);
+  }
+
+  function setBalance(balance) {
+    if (!S.player || typeof balance !== "number") return;
+    S.player.balance = balance;
+    renderBalance(true);
+  }
+
+  /* ---------- اللعب ---------- */
+
+  async function onTile(i, tile) {
+    if (!inRound() || R.opened[i] || R.busy) return;
+
+    if (R.kind === "demo") {
+      if (R.bombs.indexOf(i) !== -1) return showBomb(i, tile, R.bombs, R.vals);
+      showGem(i, tile, R.vals[i], R.score + R.vals[i]);
+      if (R.found === CELLS - R.bombCount) return showWin(R.bombs, R.vals);
+      setStatus("كمّل أو اجمع");
+      return updateButtons();
+    }
+
+    var round = R;
+    round.busy = true;
+    tile.classList.add("wait");
+    updateButtons();
+    var res;
+    try {
+      res = await A.call("open", { roundId: round.id, index: i });
+    } catch (e) {
+      if (R !== round) return;
+      round.busy = false;
+      tile.classList.remove("wait");
+      updateButtons();
+      if (e.code === "ALREADY_OPEN") return;
+      if (e.code === "ROUND_NOT_ACTIVE" || e.code === "ROUND_NOT_FOUND") { R = null; return boot(); }
+      A.toast(errorText(e));
+      return;
+    }
+    if (R !== round) return;
+    round.busy = false;
+    if (res.result === "bomb") return showBomb(i, tile, res.bombs, res.vals);
+    showGem(i, tile, res.value, res.score);
+    if (res.result === "won") {
+      setBalance(res.balance);
+      return showWin(res.bombs, res.vals);
+    }
+    setStatus("كمّل أو اجمع");
+    updateButtons();
+  }
+
+  async function collect() {
+    if (!inRound() || R.found === 0 || R.busy) return;
+    if (R.kind === "demo") return showCollected(R.bombs, R.vals);
+
+    var round = R;
+    round.busy = true;
+    updateButtons();
+    try {
+      var res = await A.call("collect", { roundId: round.id });
+      if (R !== round) return;
+      round.score = res.score;
+      setBalance(res.balance);
+      showCollected(res.bombs, res.vals);
+    } catch (e) {
+      if (R !== round) return;
+      round.busy = false;
+      updateButtons();
+      if (e.code === "ROUND_NOT_ACTIVE" || e.code === "ROUND_NOT_FOUND") { R = null; return boot(); }
+      A.toast(errorText(e));
+    }
+  }
+
+  // يبدأ (أو يكمّل) جولة حقيقية جاية من السيرفر
+  function enterRound(rv) {
+    verifyToken++;
+    phase = "idle";
+    R = { kind: "real", id: rv.id, mode: rv.mode, bombCount: rv.bombCount, opened: {}, found: 0, score: rv.score, over: false, busy: false };
     drawBoard(false);
-    setStatus(demo ? "تجربة: اختر مربع" : "اختر مربع");
+    resetCounters(rv.bombCount);
+    (rv.opened || []).forEach(function (pair) {
+      R.opened[pair[0]] = true;
+      R.found++;
+      var tile = board.children[pair[0]];
+      paint(tile, "gem", pair[1], true);
+      tile.style.animation = "none";
+    });
+    $("gemCount").textContent = String(R.found);
+    setCount("scoreValue", R.score);
+    setStatus(R.found ? "كمّل أو اجمع" : rv.mode === "free" ? "جولة مجانية: اختر مربع" : "اختر مربع");
     setNote("");
-    updateButton();
+    updateButtons();
   }
 
-  // جولة تجربة مجانية: ما فيها دفع، ونقاطها مؤقتة وما تدخل الرصيد
-  function onDemo() {
-    if (busy || configError || !over) return;
+  function startDemo() {
+    if (phase !== "idle" || inRound()) return;
     haptic("light");
-    startRound(true);
+    var bombCount = Math.min(Math.max(Number(S.settings.bombs) || 5, 1), CELLS - 1);
+    var deal = dealDemo(bombCount);
+    R = { kind: "demo", bombCount: bombCount, bombs: deal.bombs, vals: deal.vals, opened: {}, found: 0, score: 0, over: false, busy: false };
+    drawBoard(false);
+    resetCounters(bombCount);
+    setStatus("تجربة: اختر مربع");
+    setNote("");
+    updateButtons();
   }
 
-  async function onNewGame() {
-    if (busy || configError) return;
-    if (!over && !demo) return; // جولة حقيقية شغالة؛ جولة التجربة تنلغي عادي
+  async function startFree() {
+    if (phase !== "idle" || inRound() || !S.online) return;
+    haptic("medium");
+    freeBtn.disabled = true;
+    try {
+      var res = await A.call("start", { mode: "free" });
+      if (typeof res.freePlays === "number") S.player.freePlays = res.freePlays;
+      enterRound(res.round);
+    } catch (e) {
+      setNote(errorText(e));
+      if (e.code === "NO_FREE_PLAYS" && S.player) S.player.freePlays = 0;
+      updateButtons();
+    }
+  }
+
+  /* ---------- الدفع ---------- */
+
+  // علامة محلية إن المحفظة أرسلت دفعة هذه الجولة، عشان ما ينطلب الدفع مرتين والعملية لسه في الطريق
+  function paidMark(id, set) {
+    var key = "luo_paid_" + id;
+    try {
+      if (set) { window.localStorage.setItem(key, String(Date.now())); return true; }
+      var at = Number(window.localStorage.getItem(key));
+      return Boolean(at) && Date.now() - at < PAID_MARK_TTL_MS;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function verify(roundId) {
+    var token = ++verifyToken;
+    phase = "verifying";
+    setNote("وصلت العملية للشبكة، ننتظر تأكيدها. ياخذ عادةً أقل من دقيقة.");
+    updateButtons();
+    for (var i = 0; i < VERIFY_TRIES; i++) {
+      await new Promise(function (resolve) { setTimeout(resolve, i === 0 ? 2500 : VERIFY_EVERY_MS); });
+      if (token !== verifyToken) return;
+      try {
+        var res = await A.call("confirm", { roundId: roundId });
+        if (token !== verifyToken) return;
+        if (res.round && res.round.status === "active") return enterRound(res.round);
+      } catch (e) {
+        if (token !== verifyToken) return;
+        if (e.code !== "NETWORK") break;
+      }
+    }
+    if (token !== verifyToken) return;
+    phase = "idle";
+    setNote("ما تأكدت الدفعة للحين. لو دفعت فعلًا، اضغط «لعبة جديدة» بعد شوي وبتكمل بدون دفع ثاني.");
+    updateButtons();
+  }
+
+  async function startPaid() {
+    if (phase !== "idle" || !S.online || !S.settings.enabled) return;
+    if (inRound() && R.kind !== "demo") return;
     haptic("medium");
 
-    if (!paid) {
-      startRound(false);
-      return;
-    }
-
     var wallet = window.LuoWallet;
-    if (!wallet) {
-      setNote("ما تحمّلت المحفظة. أعد فتح التطبيق.");
-      return;
-    }
-    if (!wallet.isConnected()) {
-      setNote(PAY_ERRORS.NOT_CONNECTED);
-      wallet.connect();
-      return;
-    }
+    if (!wallet) return setNote("ما تحمّلت المحفظة. أعد فتح التطبيق.");
 
-    busy = true;
+    phase = "paying";
     setNote("");
-    updateButton();
+    updateButtons();
+    var rv;
     try {
-      await wallet.payTon(payTo, priceNano, cfg.comment || "");
+      rv = (await A.call("start", { mode: "paid" })).round;
+      if (rv.status === "active") return enterRound(rv);
+      // جولة بانتظار الدفع: نتأكد أول إنها ما اندفعت من قبل
+      var check = await A.call("confirm", { roundId: rv.id });
+      if (check.round && check.round.status === "active") return enterRound(check.round);
     } catch (e) {
-      busy = false;
-      haptic("error");
-      setNote(PAY_ERRORS[e && e.code] || PAY_ERRORS.FAILED);
-      updateButton();
-      return;
+      phase = "idle";
+      setNote(errorText(e));
+      return updateButtons();
     }
-    busy = false;
-    startRound(false);
+    if (paidMark(rv.id, false)) return verify(rv.id);
+
+    if (!wallet.isConnected()) {
+      phase = "idle";
+      setNote(ERROR_TEXT.NOT_CONNECTED);
+      updateButtons();
+      return wallet.connect();
+    }
+    try {
+      await wallet.payTon(rv.pay.to, BigInt(rv.pay.amountNano), rv.pay.comment);
+    } catch (e) {
+      phase = "idle";
+      haptic("error");
+      setNote(errorText(e));
+      return updateButtons();
+    }
+    paidMark(rv.id, true);
+    verify(rv.id);
   }
 
-  newBtn.addEventListener("click", onNewGame);
-  collectBtn.addEventListener("click", collect);
-  demoBtn.addEventListener("click", onDemo);
+  /* ---------- بطاقات الإعلانات ---------- */
 
-  renderBalance(false);
-  syncBalance();
+  var KIND_ICON = { news: "📣", ad: "⭐", free_game: "🎁" };
 
-  if (paid) {
+  function dismissed() {
+    try { return JSON.parse(window.localStorage.getItem("luo_dismissed") || "[]"); } catch (e) { return []; }
+  }
+
+  function dismiss(id) {
+    try {
+      var list = dismissed().filter(function (x) { return x !== id; });
+      list.push(id);
+      window.localStorage.setItem("luo_dismissed", JSON.stringify(list.slice(-50)));
+    } catch (e) { /* التخزين المحلي غير متاح */ }
+    S.anns = S.anns.filter(function (a) { return a.id !== id; });
+    renderCards();
+  }
+
+  function openLink(url) {
+    if (!/^https:\/\//i.test(url)) return;
+    try {
+      if (A.tg && /^https:\/\/t\.me\//i.test(url) && A.tg.openTelegramLink) return A.tg.openTelegramLink(url);
+      if (A.tg && A.tg.openLink) return A.tg.openLink(url);
+    } catch (e) { /* نكمل بالطريقة العادية */ }
+    window.open(url, "_blank", "noopener");
+  }
+
+  async function claim(ann, btn) {
+    btn.disabled = true;
+    try {
+      var res = await A.call("claim", { id: ann.id });
+      S.player.freePlays = res.freePlays;
+      S.anns = S.anns.filter(function (a) { return a.id !== ann.id; });
+      renderCards();
+      A.toast("انضافت لك " + res.granted + " جولة مجانية 🎁");
+      haptic("success");
+      updateButtons();
+      // يبدأ الجولة المجانية مباشرة، إلا إذا فيه جولة حقيقية شغالة
+      if (inRound() && R.kind === "demo") R = null;
+      if (!inRound()) startFree();
+    } catch (e) {
+      btn.disabled = false;
+      A.toast(errorText(e));
+      if (e.code === "ALREADY_CLAIMED" || e.code === "ANNOUNCEMENT_GONE") {
+        S.anns = S.anns.filter(function (a) { return a.id !== ann.id; });
+        renderCards();
+      }
+    }
+  }
+
+  function renderCards() {
+    var root = $("cards");
+    var hidden = dismissed();
+    var list = S.anns.filter(function (a) { return a.kind === "free_game" || hidden.indexOf(a.id) === -1; });
+    root.textContent = "";
+    root.hidden = list.length === 0;
+    view.classList.toggle("has-cards", list.length > 0);
+    list.forEach(function (a) {
+      var action = null;
+      if (a.kind === "free_game") {
+        action = h("button", { type: "button", class: "ann-btn", text: a.button || "العب مجانًا" });
+        action.addEventListener("click", function () { claim(a, action); });
+      } else if (a.url) {
+        action = h("button", { type: "button", class: "ann-btn", text: a.button || "افتح", onclick: function () { openLink(a.url); } });
+      }
+      root.appendChild(h("article", { class: "ann ann-" + a.kind },
+        h("div", { class: "ann-icon", text: KIND_ICON[a.kind] || "📣" }),
+        h("div", { class: "ann-text" },
+          h("div", { class: "ann-title", text: a.title }),
+          a.body ? h("div", { class: "ann-body", text: a.body }) : null),
+        action,
+        a.kind === "free_game" ? null : h("button", { type: "button", class: "ann-close", "aria-label": "إخفاء", text: "×", onclick: function () { dismiss(a.id); } })
+      ));
+    });
+  }
+
+  /* ---------- الجلسة ---------- */
+
+  var booting = null;
+
+  function idleBoard(statusText) {
+    if (inRound()) return;
+    R = null;
     drawBoard(true);
-    setStatus(configError ? "غير متاحة" : "ابدأ جولة");
-    updateButton();
-  } else {
-    startRound(false);
+    resetCounters(Number(S.settings.bombs) || 5);
+    setStatus(statusText);
   }
+
+  function boot() {
+    if (booting) return booting;
+    booting = (async function () {
+      try {
+        var data = await A.call("session");
+        S.player = data.player;
+        S.isAdmin = Boolean(data.isAdmin);
+        if (data.player.banned) {
+          S.online = false;
+          S.reason = "BANNED";
+        } else {
+          S.online = true;
+          S.reason = "";
+          S.settings = data.settings;
+          S.anns = data.announcements || [];
+        }
+        document.dispatchEvent(new CustomEvent("luo:session", { detail: { isAdmin: S.isAdmin } }));
+        renderBalance(false);
+        renderCards();
+        if (S.online && data.round && data.round.status === "active" && !(inRound() && R.kind === "real" && R.id === data.round.id)) {
+          enterRound(data.round);
+        } else {
+          idleBoard(S.online ? "ابدأ جولة" : "غير متاحة");
+          setNote(S.online ? "" : OFFLINE_TEXT[S.reason] || "");
+          updateButtons();
+          // دفعة سابقة ما تأكدت قبل ما ينقفل التطبيق
+          if (S.online && phase === "idle" && data.round && data.round.status === "pending" && paidMark(data.round.id, false)) verify(data.round.id);
+        }
+      } catch (e) {
+        S.online = false;
+        S.reason = e.code || "NETWORK";
+        renderBalance(false);
+        idleBoard("جرّب اللعبة");
+        setNote(OFFLINE_TEXT[S.reason] || OFFLINE_TEXT.NETWORK);
+        updateButtons();
+      }
+      booting = null;
+    })();
+    return booting;
+  }
+
+  newBtn.addEventListener("click", startPaid);
+  freeBtn.addEventListener("click", startFree);
+  demoBtn.addEventListener("click", startDemo);
+  collectBtn.addEventListener("click", collect);
+
+  // لو رجع المستخدم للتطبيق والجلسة ما اشتغلت بسبب النت
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && !S.online && S.reason === "NETWORK") boot();
+  });
+
+  window.LuoGame = { refresh: boot, showView: showView };
+
+  drawBoard(true);
+  resetCounters(5);
+  setStatus("جاري الاتصال…");
+  renderBalance(false);
+  updateButtons();
+  boot();
 })();

@@ -66,7 +66,7 @@
         <span class="balance-label">رصيدك</span>
         <span class="balance-value"><span id="balanceValue">…</span> 💎</span>
       </div>
-      <p class="note" id="gameBalanceNote" hidden>ما انحفظ آخر رصيد، بحاول مرة ثانية تلقائيًا.</p>
+      <div class="cards" id="cards" hidden></div>
       <div class="game-head">
         <div class="stat"><span class="stat-emoji">💎</span><span id="gemCount">0</span><span class="stat-total" id="gemTotal"></span></div>
         <div class="game-status" id="gameStatus" aria-live="polite">اختر مربع</div>
@@ -77,9 +77,15 @@
       <div class="game-actions">
         <button class="btn btn-collect" id="collectBtn" type="button" hidden>اجمع ووقّف</button>
         <button class="btn" id="newGameBtn" type="button">لعبة جديدة</button>
-        <button class="btn btn-demo" id="demoBtn" type="button" hidden>تجربة</button>
+        <button class="btn btn-free" id="freeBtn" type="button" hidden>🎁 مجانية</button>
+        <button class="btn btn-demo" id="demoBtn" type="button">تجربة</button>
       </div>
       <p class="note" id="gameNote" hidden></p>
+    </section>
+
+    <!-- لوحة صاحب البوت -->
+    <section id="viewAdmin" hidden>
+      <div id="admin"></div>
     </section>
   </main>
 
@@ -90,7 +96,14 @@
     <button class="tab" type="button" data-view="viewGame" aria-label="اللعبة">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10l4 5.5L12 20.5 3 9.5 7 4Z"/><path d="M3 9.5h18"/><path d="M9.5 4 8 9.5l4 11 4-11L14.5 4"/></svg>
     </button>
+    <button class="tab" type="button" id="adminTab" data-view="viewAdmin" aria-label="لوحة التحكم" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5.5c0 4.3 2.9 7.6 7 9 4.1-1.4 7-4.7 7-9V6l-7-3Z"/><path d="m9 12 2.2 2.2L15.2 10"/></svg>
+    </button>
   </nav>
+
+  <div class="sheet-backdrop" id="adminSheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" id="adminSheetBody"></div>
+  </div>
 
   <!-- نافذة الاستقبال -->
   <div class="sheet-backdrop" id="receiveSheet" hidden>
@@ -141,7 +154,9 @@
 
   <script src="config.js"></script>
   <script src="lib.js"></script>
+  <script src="api.js"></script>
   <script src="app.js"></script>
   <script src="game.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>
