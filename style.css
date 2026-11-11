@@ -712,3 +712,9 @@ form {
     transition: none;
   }
 }
+
+/* اللوحة مقفلة لين تبدأ جولة */
+.board.locked .tile {
+  filter: saturate(0.55) brightness(0.92);
+  opacity: 0.6;
+}

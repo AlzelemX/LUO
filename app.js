@@ -305,6 +305,13 @@
 
   var sending = false;
 
+  // هل الخطأ سببه إن المستخدم رفض العملية من محفظته؟
+  function isUserRejection(e) {
+    var name = (e && (e.name || (e.constructor && e.constructor.name))) || "";
+    var msg = String((e && e.message) || "");
+    return /UserRejects/i.test(name) || /reject|declin|cancel/i.test(msg);
+  }
+
   async function submitSend(tc, event) {
     event.preventDefault();
     if (sending) return;
@@ -353,9 +360,7 @@
       setTimeout(loadBalances, 8000);
       setTimeout(loadBalances, 25000);
     } catch (e) {
-      var name = (e && (e.name || (e.constructor && e.constructor.name))) || "";
-      var msg = String((e && e.message) || "");
-      if (/UserRejects/i.test(name) || /reject|declin|cancel/i.test(msg)) {
+      if (isUserRejection(e)) {
         showError("ألغيت العملية من المحفظة.");
       } else {
         console.error("sendTransaction failed:", e);
@@ -421,6 +426,38 @@
       function (wallet) { onWalletChange(tc, wallet); },
       function (err) { console.error("TON Connect error:", err); }
     );
+
+    // واجهة صغيرة تستخدمها اللعبة للدفع من المحفظة المربوطة
+    var paying = false;
+    window.LuoWallet = {
+      isConnected: function () { return Boolean(state.address); },
+      connect: function () { tc.openModal(); },
+      // يدفع TON لعنوان محدد. يرفض بخطأ فيه code: NOT_CONNECTED | BUSY | BALANCE_LOW | REJECTED | FAILED | …
+      payTon: async function (to, amountNano, comment) {
+        var err;
+        if (!state.address) { err = new Error("NOT_CONNECTED"); err.code = "NOT_CONNECTED"; throw err; }
+        if (paying || sending) { err = new Error("BUSY"); err.code = "BUSY"; throw err; }
+        paying = true;
+        try {
+          var request = await Lib.buildTonPayment(
+            { to: to, amount: amountNano, comment: comment, tonBalance: state.loaded ? state.tonBalance : null },
+            Math.floor(Date.now() / 1000)
+          );
+          try {
+            await tc.sendTransaction(request);
+          } catch (e) {
+            if (!isUserRejection(e)) console.error("payTon failed:", e);
+            err = new Error(isUserRejection(e) ? "REJECTED" : "FAILED");
+            err.code = err.message;
+            throw err;
+          }
+          setTimeout(loadBalances, 8000);
+          setTimeout(loadBalances, 25000);
+        } finally {
+          paying = false;
+        }
+      }
+    };
 
     $("connectBtn").addEventListener("click", function () {
       haptic("medium");

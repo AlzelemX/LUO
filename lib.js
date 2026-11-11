@@ -148,7 +148,38 @@
     };
   }
 
+  // جسم رسالة فيها تعليق نصي (op = 0)، يرجع base64 BOC
+  async function buildCommentPayload(text) {
+    var cell = new TonWeb.boc.Cell();
+    cell.bits.writeUint(0, 32);
+    cell.bits.writeString(String(text));
+    var boc = await cell.toBoc(false);
+    return TonWeb.utils.bytesToBase64(boc);
+  }
+
+  /*
+   * يبني طلب دفع TON لعنوان ثابت (مثل سعر جولة اللعبة).
+   * opts: { to, amount: BigInt, comment?, tonBalance: BigInt|null }
+   * tonBalance = null يعني الرصيد غير معروف، والمحفظة نفسها تتحقق.
+   */
+  async function buildTonPayment(opts, nowSeconds) {
+    var to = parseAddress(opts.to);
+    if (!to) throw fail("ADDRESS_INVALID");
+    var amount = BigInt(opts.amount);
+    if (amount <= 0n) throw fail("AMOUNT_ZERO");
+    if (opts.tonBalance != null && amount + TON_FEE_RESERVE_NANO > BigInt(opts.tonBalance)) throw fail("BALANCE_LOW");
+
+    var message = { address: toFriendly(to, false), amount: amount.toString() };
+    var comment = String(opts.comment == null ? "" : opts.comment);
+    if (comment) {
+      if (!/^[\x20-\x7E]{1,60}$/.test(comment)) throw fail("COMMENT_INVALID");
+      message.payload = await buildCommentPayload(comment);
+    }
+    return { validUntil: nowSeconds + 300, network: "-239", messages: [message] };
+  }
+
   return {
+    buildTonPayment: buildTonPayment,
     JETTON_GAS_NANO: JETTON_GAS_NANO,
     TON_FEE_RESERVE_NANO: TON_FEE_RESERVE_NANO,
     normalizeNumber: normalizeNumber,

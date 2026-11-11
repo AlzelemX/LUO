@@ -67,14 +67,72 @@
 
   var board = $("board");
   var statusEl = $("gameStatus");
+  var newBtn = $("newGameBtn");
+  var noteEl = $("gameNote");
   var bombs = [];
   var opened = [];
   var found = 0;
-  var over = false;
+  var over = true; // ما فيه جولة شغالة
+  var busy = false; // بانتظار تأكيد الدفع
+
+  /* ---------- إعداد السعر ---------- */
+
+  var Lib = window.LuoLib;
+  var cfg = (window.LUO_CONFIG && window.LUO_CONFIG.game) || {};
+  var payTo = String(cfg.payTo || "").trim();
+  var paid = payTo !== "";
+  var priceNano = 0n;
+  var priceLabel = "";
+  var configError = false;
+
+  if (paid) {
+    try {
+      if (!Lib || !Lib.parseAddress(payTo)) throw new Error("bad payTo");
+      priceNano = Lib.parseAmount(cfg.price, 9);
+      priceLabel = Lib.formatUnits(priceNano, 9) + " TON";
+    } catch (e) {
+      // إعداد غلط: نقفل اللعبة بدل ما نرسل فلوس لعنوان خطأ
+      configError = true;
+      console.error("Invalid game payment config:", e);
+    }
+  }
+
+  var PAY_ERRORS = {
+    NOT_CONNECTED: "اربط محفظتك أول عشان تلعب.",
+    BUSY: "فيه عملية ثانية شغالة، انتظر شوي.",
+    BALANCE_LOW: "رصيدك من TON ما يكفي لسعر الجولة.",
+    REJECTED: "ألغيت الدفع من المحفظة.",
+    FAILED: "ما تم الدفع. جرّب مرة ثانية."
+  };
 
   function setStatus(text, cls) {
     statusEl.textContent = text;
     statusEl.className = "game-status" + (cls ? " " + cls : "");
+  }
+
+  function setNote(text) {
+    noteEl.textContent = text || "";
+    noteEl.hidden = !text;
+  }
+
+  function updateButton() {
+    if (configError) {
+      newBtn.disabled = true;
+      newBtn.textContent = "اللعبة غير متاحة الحين";
+      return;
+    }
+    if (busy) {
+      newBtn.disabled = true;
+      newBtn.textContent = "أكّد الدفع من محفظتك…";
+      return;
+    }
+    if (paid && !over) {
+      newBtn.disabled = true;
+      newBtn.textContent = "الجولة شغالة";
+      return;
+    }
+    newBtn.disabled = false;
+    newBtn.textContent = paid ? "لعبة جديدة · " + priceLabel : "لعبة جديدة";
   }
 
   function paint(tile, index, byPlayer) {
@@ -92,6 +150,7 @@
     for (var i = 0; i < TOTAL; i++) {
       if (!opened[i]) paint(tiles[i], i, false);
     }
+    updateButton();
   }
 
   function onTile(index, tile) {
@@ -119,33 +178,80 @@
     }
   }
 
-  function newGame() {
-    bombs = dealBoard();
-    opened = [];
-    found = 0;
-    over = false;
-
+  // يرسم لوحة مقفلة (قبل بدء أي جولة)
+  function drawBoard(locked) {
     board.style.setProperty("--cols", String(COLS));
+    board.classList.toggle("locked", locked);
     board.textContent = "";
     for (var i = 0; i < TOTAL; i++) {
       var tile = document.createElement("button");
       tile.type = "button";
       tile.className = "tile";
+      tile.disabled = locked;
       tile.setAttribute("aria-label", "مربع مغلق");
-      tile.addEventListener("click", onTile.bind(null, i, tile));
+      if (!locked) tile.addEventListener("click", onTile.bind(null, i, tile));
       board.appendChild(tile);
     }
-
     $("gemCount").textContent = "0";
     $("gemTotal").textContent = "/" + GEMS;
     $("bombCount").textContent = String(BOMBS);
-    setStatus("اختر مربع");
   }
 
-  $("newGameBtn").addEventListener("click", function () {
-    haptic("medium");
-    newGame();
-  });
+  function startRound() {
+    bombs = dealBoard();
+    opened = [];
+    found = 0;
+    over = false;
+    drawBoard(false);
+    setStatus("اختر مربع");
+    setNote("");
+    updateButton();
+  }
 
-  newGame();
+  async function onNewGame() {
+    if (busy || configError) return;
+    if (paid && !over) return;
+    haptic("medium");
+
+    if (!paid) {
+      startRound();
+      return;
+    }
+
+    var wallet = window.LuoWallet;
+    if (!wallet) {
+      setNote("ما تحمّلت المحفظة. أعد فتح التطبيق.");
+      return;
+    }
+    if (!wallet.isConnected()) {
+      setNote(PAY_ERRORS.NOT_CONNECTED);
+      wallet.connect();
+      return;
+    }
+
+    busy = true;
+    setNote("");
+    updateButton();
+    try {
+      await wallet.payTon(payTo, priceNano, cfg.comment || "");
+    } catch (e) {
+      busy = false;
+      haptic("error");
+      setNote(PAY_ERRORS[e && e.code] || PAY_ERRORS.FAILED);
+      updateButton();
+      return;
+    }
+    busy = false;
+    startRound();
+  }
+
+  newBtn.addEventListener("click", onNewGame);
+
+  if (paid) {
+    drawBoard(true);
+    setStatus(configError ? "غير متاحة" : "ابدأ جولة");
+    updateButton();
+  } else {
+    startRound();
+  }
 })();
