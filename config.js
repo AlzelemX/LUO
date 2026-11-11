@@ -7,7 +7,7 @@ window.LUO_CONFIG = {
     // سعر الجولة الواحدة بعملة TON (نص عشري، مثل "0.1" أو "0.25")
     price: "0.1",
     // عنوان المحفظة اللي تستقبل الدفعات (شبكة TON). إذا فاضي: اللعبة مجانية.
-    payTo: "",
+    payTo: "UQD3EV3SDdzUe0wzNxvPi5dIbAIsIwSHquTB6ZpzzqAAqSEe",
     // ملاحظة تظهر مع كل دفعة عشان تميّزها في محفظتك (حروف إنجليزية فقط)
     comment: "LUO game"
   }
