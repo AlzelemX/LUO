@@ -15,6 +15,7 @@
   var section = "overview";
   var overview = null; // { stats, settings, announcements }
   var players = [];
+  var withdrawals = [];
   var query = "";
   var sort = "balance";
   var loading = false;
@@ -27,6 +28,7 @@
     BAD_FREE: "عدد الجولات المجانية لازم يكون بين 1 و 1000.",
     BAD_BALANCE: "الرصيد لازم يكون رقم صحيح موجب.",
     PLAYER_NOT_FOUND: "اللاعب غير موجود.",
+    WITHDRAW_NOT_FOUND: "الطلب تقرر من قبل أو غير موجود.",
     NETWORK: "انقطع الاتصال. جرّب مرة ثانية."
   };
 
@@ -352,7 +354,44 @@
 
   /* ---------- الهيكل ---------- */
 
-  var SECTIONS = [["overview", "نظرة"], ["players", "اللاعبين"], ["settings", "الإعدادات"], ["anns", "الإعلانات"]];
+  /* ---------- طلبات السحب ---------- */
+
+  async function loadWithdrawals() {
+    var res = await run("admin.withdrawals");
+    if (res) withdrawals = res.withdrawals || [];
+  }
+
+  function copy(text) {
+    try {
+      navigator.clipboard.writeText(text).then(function () { A.toast("تم النسخ"); }, function () { A.toast("ما قدرت أنسخ"); });
+    } catch (e) { A.toast("ما قدرت أنسخ"); }
+  }
+
+  function renderWithdrawals() {
+    var list = h("div", { class: "a-wds" });
+    if (!withdrawals.length) list.appendChild(h("p", { class: "note", text: "ما فيه طلبات سحب." }));
+    withdrawals.forEach(function (w) {
+      var pending = w.status === "pending";
+      async function decide(paid) {
+        var res = await run("admin.withdraw.decide", { id: w.id, paid: paid }, paid ? "تم التأكيد وخصم الجواهر" : "تم الرفض");
+        if (res) { await loadWithdrawals(); render(); }
+      }
+      list.appendChild(h("div", { class: "a-wd" },
+        h("div", { class: "a-wd-head" },
+          h("span", { class: "a-wd-name", text: (w.name || "لاعب") + (w.username ? " @" + w.username : "") }),
+          h("span", { class: "a-wd-amount", text: A.group(w.amount) + " 💎" })),
+        h("div", { class: "a-wd-sub", text: "ID " + w.playerId + " · رصيده الحين " + A.group(w.balance) + " · " + when(w.createdAt) }),
+        h("button", { type: "button", class: "a-wd-wallet", dir: "ltr", title: "نسخ", text: w.wallet, onclick: function () { copy(w.wallet); } }),
+        pending
+          ? h("div", { class: "a-actions two" },
+              h("button", { type: "button", class: "btn", text: "تم الدفع", onclick: function () { decide(true); } }),
+              h("button", { type: "button", class: "btn btn-danger", text: "رفض", onclick: function () { decide(false); } }))
+          : h("div", { class: "a-wd-sub", text: w.status === "paid" ? "✅ مدفوع" : "❌ مرفوض" })));
+    });
+    return list;
+  }
+
+  var SECTIONS = [["overview", "نظرة"], ["players", "اللاعبين"], ["withdraws", "السحب"], ["settings", "الإعدادات"], ["anns", "الإعلانات"]];
 
   function render() {
     root.textContent = "";
@@ -368,7 +407,7 @@
       root.appendChild(h("p", { class: "note", text: loading ? "جاري التحميل…" : "ما قدرت أحمّل اللوحة. اضغط التبويب مرة ثانية." }));
       return;
     }
-    root.appendChild(section === "players" ? renderPlayers() : section === "settings" ? renderSettings() : section === "anns" ? renderAnnouncements() : renderOverview());
+    root.appendChild(section === "players" ? renderPlayers() : section === "withdraws" ? renderWithdrawals() : section === "settings" ? renderSettings() : section === "anns" ? renderAnnouncements() : renderOverview());
   }
 
   async function load() {
@@ -377,6 +416,7 @@
     var res = await run("admin.overview");
     if (res) overview = res;
     if (section === "players") await loadPlayers();
+    if (section === "withdraws") await loadWithdrawals();
     loading = false;
     render();
   }

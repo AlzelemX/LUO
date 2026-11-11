@@ -14,6 +14,7 @@ const CORS = {
   "Access-Control-Max-Age": "86400",
 };
 const CELLS = 25;
+const WITHDRAW_MIN = 100; // أقل رصيد جواهر يسمح بطلب سحب
 const MAX_AUTH_AGE = 24 * 3600;
 const enc = new TextEncoder();
 
@@ -202,15 +203,17 @@ async function session(user: any, isAdmin: boolean) {
   if (player.banned) return base;
   const s = await loadSettings();
   const nowIso = new Date().toISOString();
-  const [{ data: anns }, { data: claims }, round] = await Promise.all([
+  const [{ data: anns }, { data: claims }, round, { data: wd }] = await Promise.all([
     db.from("announcements").select("*").eq("active", true).or(`expires_at.is.null,expires_at.gt."${nowIso}"`).order("created_at", { ascending: false }).limit(10),
     db.from("announcement_claims").select("announcement_id").eq("tg_id", user.id),
     openRound(user.id),
+    db.from("withdrawals").select("id").eq("tg_id", user.id).eq("status", "pending").limit(1),
   ]);
   const claimed = new Set((claims ?? []).map((c: any) => c.announcement_id));
   return {
     ...base,
     settings: publicSettings(s),
+    withdraw: { min: WITHDRAW_MIN, pending: (wd ?? []).length > 0 },
     announcements: (anns ?? []).filter((a: any) => !(a.kind === "free_game" && claimed.has(a.id)))
       .map((a: any) => ({ id: a.id, kind: a.kind, title: a.title, body: a.body, button: a.button, url: a.url, freePlays: a.free_plays })),
     round: round ? roundView(round) : null,
@@ -267,6 +270,21 @@ async function confirm(user: any, body: any) {
   if (data.error) return data;
   const { data: fresh } = await db.from("rounds").select("*").eq("id", r.id).single();
   return { round: roundView(fresh) };
+}
+
+// طلب سحب: يتسجل فقط ويظهر لصاحب البوت. الرصيد ما ينخصم إلا لما صاحب البوت يأكد الدفع.
+async function withdraw(user: any, body: any) {
+  const wallet = String(body.wallet ?? "").trim();
+  if (!/^[A-Za-z0-9_\-+/:.?=&%@]{20,200}$/.test(wallet)) return { error: "BAD_WALLET" };
+  const { data: p } = await db.from("players").select("balance").eq("tg_id", user.id).maybeSingle();
+  const balance = Number(p?.balance ?? 0);
+  if (!Number.isSafeInteger(balance) || balance < WITHDRAW_MIN) return { error: "WITHDRAW_MIN" };
+  const { error } = await db.from("withdrawals").insert({ tg_id: user.id, wallet, amount: balance });
+  if (error) {
+    if (error.code === "23505") return { error: "WITHDRAW_PENDING" };
+    throw error;
+  }
+  return { ok: true };
 }
 
 /* ---------- أوامر صاحب البوت ---------- */
@@ -352,6 +370,48 @@ async function admin(action: string, body: any) {
       if (error) throw error;
       return { ok: true };
     }
+    case "admin.withdrawals": {
+      const { data: rows, error } = await db.from("withdrawals").select("*")
+        .order("status", { ascending: true }).order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      const ids = [...new Set((rows ?? []).map((r: any) => r.tg_id))];
+      const { data: ps } = ids.length
+        ? await db.from("players").select("tg_id, first_name, username, balance").in("tg_id", ids)
+        : { data: [] as any[] };
+      const byId = new Map((ps ?? []).map((p: any) => [String(p.tg_id), p]));
+      return {
+        withdrawals: (rows ?? []).map((r: any) => {
+          const p: any = byId.get(String(r.tg_id)) ?? {};
+          return {
+            id: r.id, playerId: String(r.tg_id), name: p.first_name ?? "", username: p.username ?? "",
+            balance: Number(p.balance ?? 0), amount: Number(r.amount), wallet: r.wallet, status: r.status,
+            createdAt: r.created_at, decidedAt: r.decided_at,
+          };
+        }),
+      };
+    }
+    case "admin.withdraw.decide": {
+      if (!UUID.test(String(body.id))) return { error: "BAD_ID" };
+      const status = body.paid === true ? "paid" : "rejected";
+      // التحديث مشروط بـ pending، فالطلب ما يتقرر مرتين
+      const { data: rows, error } = await db.from("withdrawals")
+        .update({ status, decided_at: new Date().toISOString() }).eq("id", body.id).eq("status", "pending").select("*");
+      if (error) throw error;
+      const w = rows?.[0];
+      if (!w) return { error: "WITHDRAW_NOT_FOUND" };
+      if (status === "paid") {
+        const { data: p } = await db.from("players").select("balance").eq("tg_id", w.tg_id).maybeSingle();
+        const take = Math.min(Number(w.amount), Number(p?.balance ?? 0));
+        if (take > 0) {
+          const { error: e2 } = await db.rpc("luo_credit", { p_tg: w.tg_id, p_delta: -take, p_reason: "admin", p_round: null });
+          if (e2) {
+            await db.from("withdrawals").update({ status: "pending", decided_at: null }).eq("id", w.id);
+            throw e2;
+          }
+        }
+      }
+      return { ok: true };
+    }
     case "admin.ann.delete": {
       if (!UUID.test(String(body.id))) return { error: "BAD_ID" };
       const { error } = await db.from("announcements").delete().eq("id", body.id);
@@ -391,6 +451,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === "start") return json(await start(user, body));
     if (action === "confirm") return json(await confirm(user, body));
+    if (action === "withdraw") return json(await withdraw(user, body));
     if (action === "open" || action === "collect" || action === "claim") {
       const id = String(action === "claim" ? body.id : body.roundId ?? "");
       if (!UUID.test(id)) return fail("BAD_ID");

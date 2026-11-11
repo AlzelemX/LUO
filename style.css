@@ -2181,3 +2181,16 @@ body[data-view="viewWallet"] .col {
 .qr {
   box-shadow: 0 0 0 3px var(--gold);
 }
+
+/* ---------- طلب السحب ---------- */
+.withdraw { margin: 10px 0; display: grid; gap: 8px; }
+.withdraw .btn { width: 100%; }
+.withdraw-form { display: grid; gap: 8px; }
+.withdraw-form[hidden], .withdraw [hidden] { display: none; }
+.a-wds { display: grid; gap: 10px; }
+.a-wd { display: grid; gap: 8px; padding: 12px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; }
+.a-wd-head { display: flex; justify-content: space-between; gap: 10px; font-weight: 700; }
+.a-wd-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a-wd-amount { white-space: nowrap; }
+.a-wd-sub { font-size: 12px; opacity: 0.75; }
+.a-wd-wallet { appearance: none; border: 0; border-radius: 10px; padding: 8px 10px; background: rgba(0, 0, 0, 0.25); color: inherit; font: inherit; font-size: 12px; text-align: left; word-break: break-all; cursor: pointer; }
