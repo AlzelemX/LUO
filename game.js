@@ -63,6 +63,47 @@
     return cells;
   }
 
+  /* ---------- قيم الجواهر ---------- */
+
+  var DEFAULT_GEM_VALUES = [[1, 300], [2, 220], [5, 170], [10, 120], [25, 80], [50, 50], [100, 30], [250, 17], [500, 9], [1000, 4]];
+
+  // يتحقق من الجدول القادم من الإعدادات؛ أي خلل يرجّعنا للقيم الافتراضية
+  function readGemTable(raw) {
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    var table = [];
+    var total = 0;
+    for (var i = 0; i < raw.length; i++) {
+      var row = raw[i];
+      if (!Array.isArray(row) || row.length !== 2) return null;
+      var value = row[0];
+      var weight = row[1];
+      if (!Number.isSafeInteger(value) || value <= 0) return null;
+      if (!Number.isSafeInteger(weight) || weight <= 0) return null;
+      total += weight;
+      table.push({ value: value, weight: weight });
+    }
+    if (!Number.isSafeInteger(total) || total > 0x7fffffff) return null;
+    return { rows: table, total: total };
+  }
+
+  var gemCfg = (window.LUO_CONFIG && window.LUO_CONFIG.game && window.LUO_CONFIG.game.gemValues) || null;
+  var gemTable = readGemTable(gemCfg);
+  if (!gemTable) {
+    if (gemCfg) console.error("Invalid gemValues config, using defaults.");
+    gemTable = readGemTable(DEFAULT_GEM_VALUES);
+  }
+  var maxGemValue = gemTable.rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0);
+
+  // يسحب قيمة جوهرة حسب الأوزان
+  function drawGemValue() {
+    var pick = randomInt(gemTable.total);
+    for (var i = 0; i < gemTable.rows.length; i++) {
+      pick -= gemTable.rows[i].weight;
+      if (pick < 0) return gemTable.rows[i].value;
+    }
+    return gemTable.rows[gemTable.rows.length - 1].value;
+  }
+
   /* ---------- اللعبة ---------- */
 
   var board = $("board");
@@ -70,8 +111,10 @@
   var newBtn = $("newGameBtn");
   var noteEl = $("gameNote");
   var bombs = [];
+  var values = []; // قيمة الجوهرة في كل مربع (0 للقنبلة)
   var opened = [];
   var found = 0;
+  var score = 0;
   var over = true; // ما فيه جولة شغالة
   var busy = false; // بانتظار تأكيد الدفع
 
@@ -137,11 +180,23 @@
 
   function paint(tile, index, byPlayer) {
     var isBomb = bombs[index];
-    tile.textContent = isBomb ? "💣" : "💎";
+    tile.textContent = "";
+    var icon = document.createElement("span");
+    icon.className = "tile-icon";
+    icon.textContent = isBomb ? "💣" : "💎";
+    tile.appendChild(icon);
+    if (!isBomb) {
+      var val = document.createElement("span");
+      val.className = "tile-value";
+      val.textContent = String(values[index]);
+      tile.appendChild(val);
+      if (values[index] >= maxGemValue) tile.classList.add("top");
+      else if (values[index] * 10 >= maxGemValue) tile.classList.add("rare");
+    }
     tile.disabled = true;
     tile.classList.add("open", isBomb ? "bomb" : "gem");
     if (!byPlayer) tile.classList.add("ghost");
-    tile.setAttribute("aria-label", isBomb ? "قنبلة" : "جوهرة");
+    tile.setAttribute("aria-label", isBomb ? "قنبلة" : "جوهرة " + values[index]);
   }
 
   function finish() {
@@ -167,7 +222,10 @@
     }
 
     found++;
+    score += values[index];
     $("gemCount").textContent = String(found);
+    $("scoreValue").textContent = String(score);
+    if (values[index] >= maxGemValue) haptic("success");
     if (found === GEMS) {
       haptic("success");
       setStatus("🏆 فزت!", "win");
@@ -193,14 +251,17 @@
       board.appendChild(tile);
     }
     $("gemCount").textContent = "0";
+    $("scoreValue").textContent = "0";
     $("gemTotal").textContent = "/" + GEMS;
     $("bombCount").textContent = String(BOMBS);
   }
 
   function startRound() {
     bombs = dealBoard();
+    values = bombs.map(function (isBomb) { return isBomb ? 0 : drawGemValue(); });
     opened = [];
     found = 0;
+    score = 0;
     over = false;
     drawBoard(false);
     setStatus("اختر مربع");
