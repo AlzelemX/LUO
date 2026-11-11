@@ -104,6 +104,24 @@
   function initTelegram() {
     if (!insideTelegram) return;
     try { tg.ready(); tg.expand(); } catch (e) { console.error("Telegram init failed:", e); }
+
+    var atLeast = function (v) {
+      try { return Boolean(tg.isVersionAtLeast && tg.isVersionAtLeast(v)); } catch (e) { return false; }
+    };
+    var attempt = function (fn) { try { fn(); } catch (e) { /* غير مدعوم في هذا الإصدار */ } };
+
+    // ألوان تلقرام نفس لون التطبيق عشان ما يبان فاصل
+    if (atLeast("6.9")) attempt(function () { tg.setHeaderColor("#080b16"); });
+    if (atLeast("6.1")) attempt(function () { tg.setBackgroundColor("#080b16"); });
+    if (atLeast("7.10")) attempt(function () { tg.setBottomBarColor("#080b16"); });
+    // السحب لتحت ما يسكّر التطبيق بالغلط وسط اللعب
+    if (atLeast("7.7")) attempt(function () { tg.disableVerticalSwipes(); });
+    // ملء الشاشة على الجوال. أزرار تلقرام تبقى فوق، والمحتوى ينزل تحتها عبر متغيرات المساحة الآمنة في CSS
+    var platform = String(tg.platform || "");
+    if (atLeast("8.0") && (platform === "ios" || platform === "android") && !tg.isFullscreen) {
+      attempt(function () { tg.requestFullscreen(); });
+    }
+
     // initDataUnsafe للعرض فقط
     var user = tg.initDataUnsafe && tg.initDataUnsafe.user;
     if (!user) return;
@@ -419,7 +437,8 @@
 
     var tc = new window.TON_CONNECT_UI.TonConnectUI({
       manifestUrl: window.location.origin + "/tonconnect-manifest.json",
-      buttonRootId: "ton-connect"
+      buttonRootId: "ton-connect",
+      uiPreferences: { theme: (window.TON_CONNECT_UI.THEME && window.TON_CONNECT_UI.THEME.DARK) || "DARK" }
     });
 
     tc.onStatusChange(

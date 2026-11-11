@@ -1,23 +1,22 @@
-/* الألوان تأتي من ثيم تلقرام، مع قيم احتياطية عند الفتح خارج تلقرام */
+/* ثيم ثابت داكن — نفس الشكل في كل الأجهزة */
 :root {
-  --bg: var(--tg-theme-bg-color, #ffffff);
-  --bg-secondary: var(--tg-theme-secondary-bg-color, #f1f2f5);
-  --text: var(--tg-theme-text-color, #14161a);
-  --hint: var(--tg-theme-hint-color, #7d8591);
-  --accent: var(--tg-theme-button-color, #2e8be6);
-  --accent-text: var(--tg-theme-button-text-color, #ffffff);
-  --danger: var(--tg-theme-destructive-text-color, #e5484d);
-  --line: rgba(127, 127, 127, 0.18);
-  --radius: 20px;
-}
+  --bg: #080b16;
+  --surface: #121729;
+  --surface-2: #1a2038;
+  --line: rgba(255, 255, 255, 0.09);
+  --text: #f3f5fb;
+  --hint: #8e97b3;
+  --accent: #6f8dff;
+  --grad: linear-gradient(140deg, #38a4ff 0%, #6a6cff 52%, #a95cff 100%);
+  --gem: #2ee6a8;
+  --gold: #ffc94a;
+  --danger: #ff5263;
+  --radius: 22px;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: var(--tg-theme-bg-color, #16181d);
-    --bg-secondary: var(--tg-theme-secondary-bg-color, #20232a);
-    --text: var(--tg-theme-text-color, #f2f3f5);
-    --hint: var(--tg-theme-hint-color, #8b93a1);
-  }
+  /* مساحات آمنة: نوتش الجهاز + أزرار تلقرام (إغلاق/قائمة) في وضع ملء الشاشة */
+  --safe-top: calc(max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+  --tabs-h: 64px;
 }
 
 * {
@@ -46,13 +45,85 @@ p {
   margin: 0;
 }
 
+/* ---------- خلفية متحركة ---------- */
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg i {
+  position: absolute;
+  width: 78vmax;
+  height: 78vmax;
+  border-radius: 50%;
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.bg i:nth-child(1) {
+  top: -42vmax;
+  left: -30vmax;
+  background: radial-gradient(circle, rgba(56, 164, 255, 0.42), transparent 62%);
+  animation: drift-a 19s ease-in-out infinite alternate;
+}
+
+.bg i:nth-child(2) {
+  bottom: -46vmax;
+  right: -34vmax;
+  background: radial-gradient(circle, rgba(169, 92, 255, 0.4), transparent 62%);
+  animation: drift-b 23s ease-in-out infinite alternate;
+}
+
+.bg i:nth-child(3) {
+  top: 30%;
+  left: 20%;
+  width: 46vmax;
+  height: 46vmax;
+  background: radial-gradient(circle, rgba(46, 230, 168, 0.14), transparent 62%);
+  animation: drift-a 27s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes drift-a {
+  to {
+    transform: translate(12vmax, 9vmax) scale(1.12);
+  }
+}
+
+@keyframes drift-b {
+  to {
+    transform: translate(-10vmax, -12vmax) scale(1.1);
+  }
+}
+
+/* ---------- الهيكل ---------- */
 .app {
+  position: relative;
+  z-index: 1;
   max-width: 520px;
   margin: 0 auto;
-  padding: calc(16px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
+  padding: calc(14px + var(--safe-top)) 16px calc(var(--tabs-h) + 34px + var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+#viewWallet,
+#wallet,
+#viewGame {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: view-in 0.28s ease-out;
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }
 
 /* ---------- الشريط العلوي ---------- */
@@ -78,19 +149,24 @@ p {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(160deg, #2e8be6, #7c5cf6);
+  background: var(--grad);
   color: #fff;
   font-size: 19px;
   font-weight: 700;
   background-size: cover;
   background-position: center;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14), 0 6px 18px rgba(106, 108, 255, 0.45);
 }
 
 .brand {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 2px;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 3px;
   line-height: 1.2;
+  background: linear-gradient(90deg, #fff, #b9c6ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .greeting {
@@ -103,7 +179,8 @@ p {
 
 /* ---------- البطاقات ---------- */
 .card {
-  background: var(--bg-secondary);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 20px;
 }
@@ -114,24 +191,31 @@ p {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 32px 20px 24px;
+  padding: 36px 20px 24px;
 }
 
 .intro-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 24px;
+  width: 78px;
+  height: 78px;
+  border-radius: 26px;
   display: grid;
   place-items: center;
-  font-size: 34px;
+  font-size: 36px;
   color: #fff;
-  background: linear-gradient(160deg, #2e8be6, #7c5cf6);
-  box-shadow: 0 12px 28px rgba(92, 110, 246, 0.35);
+  background: var(--grad);
+  box-shadow: 0 14px 34px rgba(106, 108, 255, 0.5);
+  animation: float 3.2s ease-in-out infinite;
+}
+
+@keyframes float {
+  50% {
+    transform: translateY(-7px);
+  }
 }
 
 .intro h1 {
   font-size: 21px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .intro p {
@@ -142,14 +226,47 @@ p {
 }
 
 .hero {
+  position: relative;
+  overflow: hidden;
+  border: 0;
   color: #fff;
-  background: linear-gradient(150deg, #2e8be6 0%, #5b6cf2 55%, #7c5cf6 100%);
-  box-shadow: 0 14px 32px rgba(76, 110, 240, 0.32);
+  background: var(--grad);
+  box-shadow: 0 16px 38px rgba(96, 104, 255, 0.42);
+}
+
+/* لمعة تمر على البطاقة */
+.hero::after,
+.balance-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: skewX(-18deg);
+  animation: sheen 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes sheen {
+  0%,
+  62% {
+    left: -60%;
+  }
+  100% {
+    left: 130%;
+  }
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-label {
   font-size: 13px;
-  opacity: 0.85;
+  opacity: 0.88;
 }
 
 .address {
@@ -185,7 +302,8 @@ p {
 
 .hero .btn {
   background: #fff;
-  color: #2a55d9;
+  color: #3a49d6;
+  box-shadow: none;
 }
 
 .hero .btn-ghost {
@@ -198,24 +316,44 @@ p {
   appearance: none;
   border: 0;
   width: 100%;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: var(--accent);
-  color: var(--accent-text);
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: var(--grad);
+  color: #fff;
   font: inherit;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
+  box-shadow: 0 10px 24px rgba(96, 104, 255, 0.38);
+  transition: opacity 0.15s, transform 0.1s, filter 0.15s;
 }
 
 .btn:active {
-  transform: scale(0.98);
-  opacity: 0.88;
+  transform: scale(0.97);
+  filter: brightness(1.1);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
+  box-shadow: none;
+}
+
+.btn-collect {
+  background: linear-gradient(140deg, #1fd79a, #12b886 55%, #0aa2a0);
+  box-shadow: 0 10px 26px rgba(31, 215, 154, 0.38);
+}
+
+.btn-collect:not(:disabled) {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 10px 26px rgba(31, 215, 154, 0.38), 0 0 0 0 rgba(46, 230, 168, 0.55);
+  }
+  100% {
+    box-shadow: 0 10px 26px rgba(31, 215, 154, 0.38), 0 0 0 14px rgba(46, 230, 168, 0);
+  }
 }
 
 .link,
@@ -276,6 +414,7 @@ p {
   color: #fff;
   font-weight: 800;
   font-size: 17px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
 .coin-meta {
@@ -303,7 +442,7 @@ p {
   width: 64px;
   height: 14px;
   border-radius: 7px;
-  background: var(--line);
+  background: var(--surface-2);
   animation: pulse 1.1s ease-in-out infinite;
 }
 
@@ -325,7 +464,7 @@ p {
   position: fixed;
   inset: 0;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(3, 5, 12, 0.82);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -335,15 +474,17 @@ p {
 .sheet {
   width: 100%;
   max-width: 520px;
-  max-height: 92vh;
+  max-height: calc(100vh - var(--safe-top) - 12px);
   overflow-y: auto;
-  background: var(--bg);
-  border-radius: 24px 24px 0 0;
-  padding: 18px 18px calc(22px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 26px 26px 0 0;
+  padding: 18px 18px calc(22px + var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: 14px;
-  animation: rise 0.22s ease-out;
+  animation: rise 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
 @keyframes fade {
@@ -354,7 +495,7 @@ p {
 
 @keyframes rise {
   from {
-    transform: translateY(40px);
+    transform: translateY(46px);
     opacity: 0;
   }
 }
@@ -370,11 +511,11 @@ p {
 }
 
 .close {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: var(--bg-secondary);
-  color: var(--hint);
+  background: var(--surface-2);
+  color: var(--text);
   font-size: 22px;
   line-height: 1;
 }
@@ -395,7 +536,7 @@ p {
 }
 
 .address-full {
-  background: var(--bg-secondary);
+  background: var(--surface-2);
   border-radius: 14px;
   padding: 12px 14px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -436,7 +577,7 @@ form {
   appearance: none;
   flex: none;
   border: 1.5px solid transparent;
-  background: var(--bg-secondary);
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-weight: 700;
@@ -448,14 +589,15 @@ form {
 
 .chip[aria-checked="true"] {
   border-color: var(--accent);
-  color: var(--accent);
+  color: #fff;
+  background: rgba(111, 141, 255, 0.22);
 }
 
 .input-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--bg-secondary);
+  background: var(--surface-2);
   border-radius: 14px;
   padding: 4px 6px 4px 12px;
   border: 1.5px solid transparent;
@@ -504,80 +646,125 @@ form {
 /* ---------- التنبيه ---------- */
 .toast {
   position: fixed;
-  z-index: 20;
+  z-index: 30;
   left: 50%;
-  bottom: calc(92px + env(safe-area-inset-bottom));
+  bottom: calc(var(--tabs-h) + 30px + var(--safe-bottom));
   transform: translateX(-50%);
   max-width: calc(100% - 32px);
-  background: rgba(20, 22, 26, 0.94);
-  color: #fff;
+  background: #fff;
+  color: #10131f;
   font-size: 14px;
+  font-weight: 600;
   padding: 10px 18px;
   border-radius: 999px;
   text-align: center;
-  animation: rise 0.2s ease-out;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  animation: toast-in 0.22s ease-out;
 }
 
-/* ---------- التنقل السفلي ---------- */
-#viewWallet,
-#wallet,
-#viewGame {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
 }
 
-.tabs {
+/* تدرّج ثابت تحت شريط التنقل عشان المحتوى ما يتداخل معه */
+body::after {
+  content: "";
   position: fixed;
-  z-index: 5;
+  z-index: 4;
   left: 0;
   right: 0;
   bottom: 0;
+  height: calc(var(--tabs-h) + 44px + var(--safe-bottom));
+  background: linear-gradient(to top, var(--bg) 62%, transparent);
+  pointer-events: none;
+}
+
+/* ---------- التنقل السفلي (أيقونات فقط) ---------- */
+.tabs {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(14px + var(--safe-bottom));
+  transform: translateX(-50%);
   display: flex;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-  background: var(--bg);
-  border-top: 1px solid var(--line);
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: #151a2e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
 }
 
 .tab {
   appearance: none;
   border: 0;
   background: none;
-  flex: 1;
-  max-width: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 8px;
-  border-radius: 14px;
+  width: 68px;
+  height: calc(var(--tabs-h) - 14px);
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
   color: var(--hint);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
   cursor: pointer;
+  transition: color 0.2s, background 0.2s, transform 0.12s;
 }
 
-.tab-icon {
-  font-size: 22px;
-  line-height: 1.2;
-  filter: grayscale(1);
-  opacity: 0.6;
+.tab:active {
+  transform: scale(0.92);
+}
+
+.tab svg {
+  width: 26px;
+  height: 26px;
+  display: block;
 }
 
 .tab[aria-current="page"] {
-  color: var(--accent);
-  background: var(--bg-secondary);
-}
-
-.tab[aria-current="page"] .tab-icon {
-  filter: none;
-  opacity: 1;
+  color: #fff;
+  background: var(--grad);
+  box-shadow: 0 6px 18px rgba(106, 108, 255, 0.55);
 }
 
 /* ---------- اللعبة ---------- */
+.balance-bar {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 18px;
+  border-radius: 18px;
+  color: #fff;
+  background: var(--grad);
+  box-shadow: 0 12px 28px rgba(96, 104, 255, 0.38);
+}
+
+.balance-label {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.balance-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+
+.balance-value.bump {
+  animation: bump 0.5s ease-out;
+}
+
+@keyframes bump {
+  35% {
+    transform: scale(1.22);
+  }
+}
+
 .game-head {
   display: flex;
   align-items: center;
@@ -593,7 +780,8 @@ form {
   justify-content: center;
   padding: 8px 12px;
   border-radius: 14px;
-  background: var(--bg-secondary);
+  background: var(--surface);
+  border: 1px solid var(--line);
   font-weight: 800;
   font-size: 17px;
   font-variant-numeric: tabular-nums;
@@ -613,113 +801,18 @@ form {
 .game-status {
   flex: 1;
   text-align: center;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
 }
 
 .game-status.win {
-  color: #1fa97a;
+  color: var(--gem);
 }
 
 .game-status.lose {
   color: var(--danger);
 }
 
-.board {
-  display: grid;
-  grid-template-columns: repeat(var(--cols, 5), 1fr);
-  gap: 9px;
-  direction: ltr;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.tile {
-  appearance: none;
-  border: 0;
-  padding: 0;
-  aspect-ratio: 1;
-  border-radius: 16px;
-  font-size: clamp(24px, 8.5vw, 38px);
-  line-height: 1;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  color: var(--text);
-  background: linear-gradient(155deg, #4a8df0 0%, #5b6cf2 55%, #7c5cf6 100%);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -5px 0 rgba(0, 0, 0, 0.2), 0 5px 12px rgba(76, 110, 240, 0.28);
-  transition: transform 0.12s ease, filter 0.12s ease;
-}
-
-.tile:not(:disabled):active {
-  transform: scale(0.93);
-  filter: brightness(1.12);
-}
-
-.tile:disabled {
-  cursor: default;
-}
-
-.tile.open {
-  animation: flip 0.32s ease-out;
-  box-shadow: inset 0 0 0 1.5px var(--line);
-}
-
-.tile.gem {
-  background: radial-gradient(circle at 50% 40%, rgba(46, 214, 163, 0.34), rgba(46, 214, 163, 0.08) 70%), var(--bg-secondary);
-}
-
-.tile.bomb {
-  background: radial-gradient(circle at 50% 40%, rgba(229, 72, 77, 0.36), rgba(229, 72, 77, 0.1) 70%), var(--bg-secondary);
-}
-
-.tile.hit {
-  box-shadow: inset 0 0 0 2.5px var(--danger), 0 0 18px rgba(229, 72, 77, 0.55);
-  animation: flip 0.32s ease-out, shake 0.4s ease-in-out 0.3s;
-}
-
-/* المربعات اللي انكشفت بعد نهاية الجولة وما ضغطها اللاعب */
-.tile.ghost {
-  opacity: 0.45;
-  animation: none;
-}
-
-@keyframes flip {
-  0% {
-    transform: rotateY(90deg) scale(0.9);
-  }
-  100% {
-    transform: none;
-  }
-}
-
-@keyframes shake {
-  20%,
-  60% {
-    transform: translateX(-4px);
-  }
-  40%,
-  80% {
-    transform: translateX(4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tile,
-  .tile.open,
-  .tile.hit {
-    animation: none;
-    transition: none;
-  }
-}
-
-/* اللوحة مقفلة لين تبدأ جولة */
-.board.locked .tile {
-  filter: saturate(0.55) brightness(0.92);
-  opacity: 0.6;
-}
-
-/* ---------- قيم الجواهر ---------- */
 .score {
   display: flex;
   align-items: baseline;
@@ -734,11 +827,126 @@ form {
 }
 
 .score-value {
-  font-size: 34px;
-  font-weight: 800;
+  font-size: 40px;
+  font-weight: 900;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   direction: ltr;
+  background: linear-gradient(180deg, #fff, #aab9ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: filter 0.2s;
+}
+
+.score-value.lost {
+  background: none;
+  color: var(--danger);
+}
+
+.score-value.won {
+  background: linear-gradient(180deg, #aaffdf, var(--gem));
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 14px rgba(46, 230, 168, 0.55));
+}
+
+/* صفحة اللعبة تاخذ الشاشة كاملة: نخفي الشريط العلوي ونحجّم اللوحة عشان كل شي يبان بدون سكرول */
+body[data-view="viewGame"] .topbar {
+  display: none;
+}
+
+.board {
+  width: min(100%, max(250px, calc(var(--tg-viewport-stable-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 392px)));
+  align-self: center;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), 1fr);
+  gap: 9px;
+  direction: ltr;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board.shake {
+  animation: board-shake 0.45s ease-in-out;
+}
+
+@keyframes board-shake {
+  15%,
+  55% {
+    transform: translateX(-7px) rotate(-0.6deg);
+  }
+  35%,
+  75% {
+    transform: translateX(7px) rotate(0.6deg);
+  }
+}
+
+.tile {
+  position: relative;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  aspect-ratio: 1;
+  border-radius: 17px;
+  font: inherit;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--text);
+  overflow: hidden;
+  background: linear-gradient(155deg, #4a9bff 0%, #6a6cff 55%, #9a5cff 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.32), inset 0 -6px 0 rgba(0, 0, 0, 0.24), 0 6px 14px rgba(86, 100, 255, 0.34);
+  transition: transform 0.12s ease, filter 0.12s ease;
+  animation: tile-in 0.36s cubic-bezier(0.2, 0.9, 0.3, 1.25) backwards;
+  animation-delay: calc(var(--i, 0) * 16ms);
+}
+
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+}
+
+/* لمعة خفيفة تمر على المربعات المغلقة */
+.tile:not(.open)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.3) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: tile-sheen 4.2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 70ms + 900ms);
+}
+
+@keyframes tile-sheen {
+  0%,
+  70% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.tile:not(:disabled):active {
+  transform: scale(0.9);
+  filter: brightness(1.18);
+}
+
+.tile:disabled {
+  cursor: default;
+}
+
+.board.locked .tile {
+  filter: saturate(0.5) brightness(0.72);
+}
+
+.board.locked .tile::after {
+  animation: none;
 }
 
 .tile.open {
@@ -747,6 +955,9 @@ form {
   align-items: center;
   justify-content: center;
   gap: 3px;
+  overflow: visible;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  animation: flip 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
 .tile-icon {
@@ -763,21 +974,69 @@ form {
   font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: #1fa97a;
+  color: var(--gem);
+}
+
+.tile.gem {
+  background: radial-gradient(circle at 50% 38%, rgba(46, 230, 168, 0.3), rgba(46, 230, 168, 0.05) 72%), var(--surface);
+  box-shadow: inset 0 0 0 1.5px rgba(46, 230, 168, 0.4);
+}
+
+/* حلقة تتمدد لحظة ظهور الجوهرة */
+.tile.gem:not(.ghost)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--gem);
+  animation: ring 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+.tile.bomb {
+  background: radial-gradient(circle at 50% 38%, rgba(255, 82, 99, 0.36), rgba(255, 82, 99, 0.07) 72%), var(--surface);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 82, 99, 0.42);
+}
+
+.tile.hit {
+  box-shadow: inset 0 0 0 2.5px var(--danger), 0 0 26px rgba(255, 82, 99, 0.75);
+  animation: flip 0.34s ease-out, boom 0.5s ease-out 0.3s;
+  z-index: 2;
+}
+
+@keyframes boom {
+  30% {
+    transform: scale(1.28);
+  }
 }
 
 .tile.rare {
-  background: radial-gradient(circle at 50% 40%, rgba(245, 185, 50, 0.45), rgba(245, 185, 50, 0.12) 70%), var(--bg-secondary);
-  box-shadow: inset 0 0 0 2px rgba(245, 185, 50, 0.8);
+  background: radial-gradient(circle at 50% 38%, rgba(255, 201, 74, 0.42), rgba(255, 201, 74, 0.08) 72%), var(--surface);
+  box-shadow: inset 0 0 0 2px rgba(255, 201, 74, 0.85), 0 0 16px rgba(255, 201, 74, 0.35);
 }
 
 .tile.rare .tile-value {
-  color: #c98a00;
+  color: var(--gold);
+}
+
+.tile.rare:not(.ghost)::before {
+  border-color: var(--gold);
 }
 
 .tile.top {
   background: linear-gradient(140deg, #ffd76a, #ff8a5c 45%, #c86bff 100%);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75), 0 0 22px rgba(255, 170, 70, 0.75);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 170, 70, 0.8);
 }
 
 .tile.top .tile-value {
@@ -786,42 +1045,121 @@ form {
 }
 
 .tile.top:not(.ghost) {
-  animation: flip 0.32s ease-out, glow 1.4s ease-in-out 0.32s infinite alternate;
+  animation: flip 0.34s ease-out, glow 1.4s ease-in-out 0.34s infinite alternate;
 }
 
 @keyframes glow {
   to {
-    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 34px rgba(255, 150, 60, 0.95);
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 38px rgba(255, 150, 60, 1);
+  }
+}
+
+/* المربعات اللي انكشفت بعد نهاية الجولة وما ضغطها اللاعب */
+.tile.ghost {
+  opacity: 0.42;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  animation: ghost-in 0.3s ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 14ms);
+}
+
+@keyframes ghost-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes flip {
+  0% {
+    transform: rotateY(90deg) scale(0.86);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* ---------- المؤثرات ---------- */
+.fx {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.fx-float {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--gem);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  animation: float-up 0.95s ease-out forwards;
+  direction: ltr;
+}
+
+.fx-float.gold {
+  color: var(--gold);
+  font-size: 26px;
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -90%) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -260%) scale(1);
+  }
+}
+
+.fx-bit {
+  position: absolute;
+  width: 9px;
+  height: 14px;
+  border-radius: 3px;
+  animation: bit 1.25s cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+}
+
+@keyframes bit {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+  }
+}
+
+.fx-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 55%, rgba(255, 82, 99, 0.5), transparent 70%);
+  animation: flash 0.55s ease-out forwards;
+}
+
+@keyframes flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile.top:not(.ghost) {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
   }
-}
-
-/* ---------- الرصيد ---------- */
-.balance-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-radius: 18px;
-  color: #fff;
-  background: linear-gradient(150deg, #2e8be6 0%, #5b6cf2 55%, #7c5cf6 100%);
-  box-shadow: 0 10px 24px rgba(76, 110, 240, 0.28);
-}
-
-.balance-label {
-  font-size: 14px;
-  font-weight: 600;
-  opacity: 0.9;
-}
-
-.balance-value {
-  font-size: 22px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  direction: ltr;
 }

@@ -30,6 +30,7 @@
         if (active) t.setAttribute("aria-current", "page");
         else t.removeAttribute("aria-current");
       });
+      document.body.setAttribute("data-view", tab.getAttribute("data-view"));
       window.scrollTo(0, 0);
       haptic("light");
     });
@@ -192,7 +193,9 @@
 
   function renderBalance(saveFailed) {
     var el = $("balanceValue");
-    el.textContent = savedBalance === null && pending === 0 ? "…" : String(Math.min((savedBalance || 0) + pending, MAX_BALANCE));
+    var text = savedBalance === null && pending === 0 ? "…" : String(Math.min((savedBalance || 0) + pending, MAX_BALANCE));
+    if (el.textContent !== text && el.textContent !== "…") restartAnimation(el.parentNode, "bump");
+    el.textContent = text;
     $("gameBalanceNote").hidden = !saveFailed;
   }
 
@@ -236,11 +239,101 @@
     if (document.visibilityState === "visible" && (pending > 0 || savedBalance === null)) syncBalance();
   });
 
+  /* ---------- المؤثرات ---------- */
+
+  var fx = $("fx");
+  var reduceMotion = false;
+  try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { reduceMotion = false; }
+
+  function fxAdd(el, ms) {
+    if (!fx) return;
+    fx.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, ms);
+  }
+
+  // رقم يطلع من المربع ويختفي
+  function floatText(fromEl, text, gold) {
+    if (reduceMotion) return;
+    var r = fromEl.getBoundingClientRect();
+    var el = document.createElement("div");
+    el.className = "fx-float" + (gold ? " gold" : "");
+    el.textContent = text;
+    el.style.left = r.left + r.width / 2 + "px";
+    el.style.top = r.top + r.height / 2 + "px";
+    fxAdd(el, 1000);
+  }
+
+  // قصاصات ملونة تنفجر من عنصر
+  function burst(fromEl, count) {
+    if (reduceMotion) return;
+    var r = fromEl.getBoundingClientRect();
+    var cx = r.left + r.width / 2;
+    var cy = r.top + r.height / 2;
+    var colors = ["#38a4ff", "#6a6cff", "#a95cff", "#2ee6a8", "#ffc94a", "#ffffff"];
+    for (var i = 0; i < count; i++) {
+      var bit = document.createElement("i");
+      bit.className = "fx-bit";
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 90 + Math.random() * 190;
+      bit.style.left = cx + "px";
+      bit.style.top = cy + "px";
+      bit.style.background = colors[i % colors.length];
+      bit.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+      bit.style.setProperty("--dy", Math.sin(angle) * dist + 120 + "px");
+      bit.style.setProperty("--rot", (Math.random() * 720 - 360) + "deg");
+      bit.style.animationDelay = Math.random() * 90 + "ms";
+      fxAdd(bit, 1500);
+    }
+  }
+
+  function flashRed() {
+    if (reduceMotion) return;
+    var el = document.createElement("div");
+    el.className = "fx-flash";
+    fxAdd(el, 600);
+  }
+
+  function restartAnimation(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth; // يعيد تشغيل الأنيميشن
+    el.classList.add(cls);
+  }
+
+  // عدّاد يتحرك من القيمة المعروضة للقيمة الجديدة
+  var counters = {};
+  function countTo(id, target) {
+    var el = $(id);
+    var state = counters[id] || (counters[id] = { shown: 0, raf: 0 });
+    cancelAnimationFrame(state.raf);
+    if (reduceMotion) { state.shown = target; el.textContent = String(target); return; }
+    var from = state.shown;
+    var start = 0;
+    var duration = 380;
+    function step(ts) {
+      if (!start) start = ts;
+      var t = Math.min(1, (ts - start) / duration);
+      var eased = 1 - Math.pow(1 - t, 3);
+      state.shown = Math.round(from + (target - from) * eased);
+      el.textContent = String(state.shown);
+      if (t < 1) state.raf = requestAnimationFrame(step);
+    }
+    state.raf = requestAnimationFrame(step);
+  }
+
+  function setCount(id, value) {
+    var state = counters[id] || (counters[id] = { shown: 0, raf: 0 });
+    cancelAnimationFrame(state.raf);
+    state.shown = value;
+    $(id).textContent = String(value);
+  }
+
   /* ---------- اللعبة ---------- */
 
   var board = $("board");
   var statusEl = $("gameStatus");
   var newBtn = $("newGameBtn");
+  var collectBtn = $("collectBtn");
+  var scoreEl = $("scoreValue");
   var noteEl = $("gameNote");
   var bombs = [];
   var values = []; // قيمة الجوهرة في كل مربع (0 للقنبلة)
@@ -291,6 +384,15 @@
   }
 
   function updateButton() {
+    // أثناء الجولة: زر «اجمع ووقّف» بدل «لعبة جديدة»
+    var inRound = !over && !configError;
+    collectBtn.hidden = !inRound;
+    newBtn.hidden = inRound;
+    if (inRound) {
+      collectBtn.disabled = found === 0;
+      collectBtn.textContent = found === 0 ? "اجمع ووقّف" : "اجمع ووقّف · +" + score;
+      return;
+    }
     if (configError) {
       newBtn.disabled = true;
       newBtn.textContent = "اللعبة غير متاحة الحين";
@@ -299,11 +401,6 @@
     if (busy) {
       newBtn.disabled = true;
       newBtn.textContent = "أكّد الدفع من محفظتك…";
-      return;
-    }
-    if (paid && !over) {
-      newBtn.disabled = true;
-      newBtn.textContent = "الجولة شغالة";
       return;
     }
     newBtn.disabled = false;
@@ -334,8 +431,11 @@
   function finish() {
     over = true;
     var tiles = board.children;
+    var order = 0;
     for (var i = 0; i < TOTAL; i++) {
-      if (!opened[i]) paint(tiles[i], i, false);
+      if (opened[i]) continue;
+      tiles[i].style.setProperty("--i", String(order++));
+      paint(tiles[i], i, false);
     }
     updateButton();
   }
@@ -348,6 +448,12 @@
     if (bombs[index]) {
       tile.classList.add("hit");
       haptic("error");
+      flashRed();
+      restartAnimation(board, "shake");
+      // القنبلة تضيّع كل اللي انجمع في هذه الجولة
+      score = 0;
+      scoreEl.classList.add("lost");
+      countTo("scoreValue", 0);
       setStatus("💥 خسرت!", "lose");
       finish();
       return;
@@ -356,17 +462,34 @@
     found++;
     score += values[index];
     $("gemCount").textContent = String(found);
-    $("scoreValue").textContent = String(score);
+    countTo("scoreValue", score);
+    var big = values[index] * 10 >= maxGemValue;
+    floatText(tile, "+" + values[index], big);
+    if (big) burst(tile, values[index] >= maxGemValue ? 44 : 16);
     if (values[index] >= maxGemValue) haptic("success");
     if (found === GEMS) {
       haptic("success");
       setStatus("🏆 فزت! +" + score, "win");
+      scoreEl.classList.add("won");
+      burst(board, 70);
       addToBalance(score);
       finish();
     } else {
       haptic("light");
-      setStatus("كمّل…");
+      setStatus("كمّل أو اجمع");
+      updateButton();
     }
+  }
+
+  // اللاعب يوقف وياخذ اللي جمعه قبل ما يضرب قنبلة
+  function collect() {
+    if (over || found === 0) return;
+    haptic("success");
+    setStatus("✅ جمعت +" + score, "win");
+    scoreEl.classList.add("won");
+    burst(collectBtn, 60);
+    addToBalance(score);
+    finish();
   }
 
   // يرسم لوحة مقفلة (قبل بدء أي جولة)
@@ -378,13 +501,15 @@
       var tile = document.createElement("button");
       tile.type = "button";
       tile.className = "tile";
+      tile.style.setProperty("--i", String(i));
       tile.disabled = locked;
       tile.setAttribute("aria-label", "مربع مغلق");
       if (!locked) tile.addEventListener("click", onTile.bind(null, i, tile));
       board.appendChild(tile);
     }
     $("gemCount").textContent = "0";
-    $("scoreValue").textContent = "0";
+    setCount("scoreValue", 0);
+    scoreEl.classList.remove("lost", "won");
     $("gemTotal").textContent = "/" + GEMS;
     $("bombCount").textContent = String(BOMBS);
   }
@@ -404,7 +529,7 @@
 
   async function onNewGame() {
     if (busy || configError) return;
-    if (paid && !over) return;
+    if (!over) return;
     haptic("medium");
 
     if (!paid) {
@@ -440,6 +565,7 @@
   }
 
   newBtn.addEventListener("click", onNewGame);
+  collectBtn.addEventListener("click", collect);
 
   renderBalance(false);
   syncBalance();
