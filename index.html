@@ -72,10 +72,13 @@
         <div class="game-status" id="gameStatus" aria-live="polite">اختر مربع</div>
         <div class="stat"><span class="stat-emoji">💣</span><span id="bombCount">0</span></div>
       </div>
-      <div class="score"><span class="score-label">المجموع</span><span class="score-value" id="scoreValue">0</span></div>
+      <div class="score"><span class="demo-chip" id="demoChip" hidden>تجربة</span><span class="score-label">المجموع</span><span class="score-value" id="scoreValue">0</span></div>
       <div class="board" id="board" role="grid" aria-label="لوحة اللعبة"></div>
-      <button class="btn btn-collect" id="collectBtn" type="button" hidden>اجمع ووقّف</button>
-      <button class="btn" id="newGameBtn" type="button">لعبة جديدة</button>
+      <div class="game-actions">
+        <button class="btn btn-collect" id="collectBtn" type="button" hidden>اجمع ووقّف</button>
+        <button class="btn" id="newGameBtn" type="button">لعبة جديدة</button>
+        <button class="btn btn-demo" id="demoBtn" type="button" hidden>تجربة</button>
+      </div>
       <p class="note" id="gameNote" hidden></p>
     </section>
   </main>

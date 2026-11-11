@@ -333,6 +333,8 @@
   var statusEl = $("gameStatus");
   var newBtn = $("newGameBtn");
   var collectBtn = $("collectBtn");
+  var demoBtn = $("demoBtn");
+  var demo = false; // جولة تجربة: بدون دفع، ونقاطها ما تنضاف للرصيد ولا تنحفظ
   var scoreEl = $("scoreValue");
   var noteEl = $("gameNote");
   var bombs = [];
@@ -387,11 +389,15 @@
     // أثناء الجولة: زر «اجمع ووقّف» بدل «لعبة جديدة»
     var inRound = !over && !configError;
     collectBtn.hidden = !inRound;
-    newBtn.hidden = inRound;
+    // في جولة التجربة يبقى زر اللعبة الحقيقية ظاهر عشان اللاعب يقدر ينتقل لها مباشرة
+    newBtn.hidden = inRound && !demo;
+    demoBtn.hidden = !(paid && !configError && over);
+    demoBtn.disabled = busy;
     if (inRound) {
+      var collectLabel = demo ? "اجمع (تجربة)" : "اجمع ووقّف";
       collectBtn.disabled = found === 0;
-      collectBtn.textContent = found === 0 ? "اجمع ووقّف" : "اجمع ووقّف · +" + score;
-      return;
+      collectBtn.textContent = found === 0 ? collectLabel : collectLabel + " · +" + score;
+      if (!demo) return;
     }
     if (configError) {
       newBtn.disabled = true;
@@ -404,7 +410,7 @@
       return;
     }
     newBtn.disabled = false;
-    newBtn.textContent = paid ? "لعبة جديدة · " + priceLabel : "لعبة جديدة";
+    newBtn.textContent = paid ? (inRound && demo ? "لعبة حقيقية · " : "لعبة جديدة · ") + priceLabel : "لعبة جديدة";
   }
 
   function paint(tile, index, byPlayer) {
@@ -454,7 +460,7 @@
       score = 0;
       scoreEl.classList.add("lost");
       countTo("scoreValue", 0);
-      setStatus("💥 خسرت!", "lose");
+      setStatus(demo ? "💥 خسرت (تجربة)" : "💥 خسرت!", "lose");
       finish();
       return;
     }
@@ -469,10 +475,10 @@
     if (values[index] >= maxGemValue) haptic("success");
     if (found === GEMS) {
       haptic("success");
-      setStatus("🏆 فزت! +" + score, "win");
+      setStatus(demo ? "🏆 فزت (تجربة)" : "🏆 فزت! +" + score, "win");
       scoreEl.classList.add("won");
       burst(board, 70);
-      addToBalance(score);
+      if (!demo) addToBalance(score);
       finish();
     } else {
       haptic("light");
@@ -485,10 +491,10 @@
   function collect() {
     if (over || found === 0) return;
     haptic("success");
-    setStatus("✅ جمعت +" + score, "win");
+    setStatus(demo ? "تجربة: ما تنحسب" : "✅ جمعت +" + score, "win");
     scoreEl.classList.add("won");
     burst(collectBtn, 60);
-    addToBalance(score);
+    if (!demo) addToBalance(score);
     finish();
   }
 
@@ -514,7 +520,10 @@
     $("bombCount").textContent = String(BOMBS);
   }
 
-  function startRound() {
+  function startRound(isDemo) {
+    demo = Boolean(isDemo);
+    $("viewGame").classList.toggle("demo", demo);
+    $("demoChip").hidden = !demo;
     bombs = dealBoard();
     values = bombs.map(function (isBomb) { return isBomb ? 0 : drawGemValue(); });
     opened = [];
@@ -522,18 +531,25 @@
     score = 0;
     over = false;
     drawBoard(false);
-    setStatus("اختر مربع");
+    setStatus(demo ? "تجربة: اختر مربع" : "اختر مربع");
     setNote("");
     updateButton();
   }
 
+  // جولة تجربة مجانية: ما فيها دفع، ونقاطها مؤقتة وما تدخل الرصيد
+  function onDemo() {
+    if (busy || configError || !over) return;
+    haptic("light");
+    startRound(true);
+  }
+
   async function onNewGame() {
     if (busy || configError) return;
-    if (!over) return;
+    if (!over && !demo) return; // جولة حقيقية شغالة؛ جولة التجربة تنلغي عادي
     haptic("medium");
 
     if (!paid) {
-      startRound();
+      startRound(false);
       return;
     }
 
@@ -561,11 +577,12 @@
       return;
     }
     busy = false;
-    startRound();
+    startRound(false);
   }
 
   newBtn.addEventListener("click", onNewGame);
   collectBtn.addEventListener("click", collect);
+  demoBtn.addEventListener("click", onDemo);
 
   renderBalance(false);
   syncBalance();
@@ -575,6 +592,6 @@
     setStatus(configError ? "غير متاحة" : "ابدأ جولة");
     updateButton();
   } else {
-    startRound();
+    startRound(false);
   }
 })();

@@ -356,6 +356,51 @@ p {
   }
 }
 
+/* أزرار اللعبة في صف واحد */
+.game-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.game-actions .btn {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-actions .btn-demo {
+  flex: none;
+  width: auto;
+  padding-inline: 20px;
+  background: var(--surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+/* وضع التجربة */
+.demo-chip {
+  align-self: center;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #10131f;
+  background: var(--gold);
+}
+
+#viewGame.demo .board {
+  outline: 2px dashed rgba(255, 201, 74, 0.6);
+  outline-offset: 7px;
+  border-radius: 20px;
+}
+
+#viewGame.demo .game-actions .btn {
+  font-size: 14px;
+}
+
 .link,
 .mini,
 .close {
