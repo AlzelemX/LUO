@@ -111,9 +111,9 @@
     var attempt = function (fn) { try { fn(); } catch (e) { /* غير مدعوم في هذا الإصدار */ } };
 
     // ألوان تلقرام نفس لون التطبيق عشان ما يبان فاصل
-    if (atLeast("6.9")) attempt(function () { tg.setHeaderColor("#080b16"); });
-    if (atLeast("6.1")) attempt(function () { tg.setBackgroundColor("#080b16"); });
-    if (atLeast("7.10")) attempt(function () { tg.setBottomBarColor("#080b16"); });
+    if (atLeast("6.9")) attempt(function () { tg.setHeaderColor("#5c0b18"); });
+    if (atLeast("6.1")) attempt(function () { tg.setBackgroundColor("#5c0b18"); });
+    if (atLeast("7.10")) attempt(function () { tg.setBottomBarColor("#3b060e"); });
     // السحب لتحت ما يسكّر التطبيق بالغلط وسط اللعب
     if (atLeast("7.7")) attempt(function () { tg.disableVerticalSwipes(); });
     // ملء الشاشة على الجوال. أزرار تلقرام تبقى فوق، والمحتوى ينزل تحتها عبر متغيرات المساحة الآمنة في CSS

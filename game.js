@@ -107,7 +107,7 @@
     var r = fromEl.getBoundingClientRect();
     var cx = r.left + r.width / 2;
     var cy = r.top + r.height / 2;
-    var colors = ["#38a4ff", "#6a6cff", "#a95cff", "#2ee6a8", "#ffc94a", "#ffffff"];
+    var colors = ["#f6e3a8", "#d9b160", "#b98a34", "#fbf6ea", "#e9dfc9", "#2a1a10"];
     for (var i = 0; i < count; i++) {
       var bit = h("i", { class: "fx-bit" });
       var angle = Math.random() * Math.PI * 2;

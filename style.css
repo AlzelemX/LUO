@@ -913,7 +913,7 @@ body[data-view="viewAdmin"] .topbar {
 }
 
 .board {
-  width: min(100%, max(250px, calc(var(--tg-viewport-stable-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 392px)));
+  width: min(100%, max(250px, calc(var(--tg-viewport-stable-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 404px)));
   align-self: center;
   position: relative;
   display: grid;
@@ -1705,4 +1705,479 @@ textarea.f-input {
   font-size: 12.5px;
   font-weight: 700;
   color: var(--hint);
+}
+
+/* ==========================================================================
+   ثيم Luo: مخمل قرمزي، رخام عاجي، ذهب، ولمسة نقشة فهد
+   ========================================================================== */
+@font-face {
+  font-family: "Luo Display";
+  src: url("vendor/fonts/playfair-display-latin-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Luo Display";
+  src: url("vendor/fonts/playfair-display-latin-600-italic.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --bg: #5c0b18;
+  --surface: #40060e;
+  --surface-2: #58101a;
+  --line: rgba(246, 236, 214, 0.16);
+  --text: #f8f1e3;
+  --hint: #e0c3b8;
+  --accent: #e7c57e;
+  --ivory: #fbf6ea;
+  --ink: #3a0810;
+  --gold-grad: linear-gradient(135deg, #fbeab5 0%, #e2bd6a 38%, #b98a34 72%, #f1d58e 100%);
+  --marble: linear-gradient(160deg, #fffaf0 0%, #efe6d2 48%, #d8cab0 100%);
+  --grad: var(--gold-grad);
+  --gem: #8be6bd;
+  --gold: #f1cf7e;
+  --danger: #ffa391;
+  --display: "Luo Display", "Didot", "Bodoni 72", "Playfair Display", "Times New Roman", serif;
+  /* نقشة وردات الفهد */
+  --leopard: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cg fill='none' stroke='%232a1a10' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M14 18c4-7 14-7 17 0M12 27c3 6 13 7 18 1'/%3E%3Cpath d='M58 10c6-4 14 0 13 8M56 20c2 6 10 8 15 3'/%3E%3Cpath d='M36 52c5-7 15-5 16 3M34 62c4 6 13 6 18-1'/%3E%3Cpath d='M74 58c5-5 13-2 13 5M73 68c3 5 10 6 14 1'/%3E%3Cpath d='M8 74c4-5 11-4 12 2M8 84c3 4 9 4 12 0'/%3E%3C/g%3E%3Cg fill='%232a1a10'%3E%3Ccircle cx='44' cy='24' r='3.5'/%3E%3Ccircle cx='86' cy='34' r='3'/%3E%3Ccircle cx='22' cy='48' r='3'/%3E%3Ccircle cx='60' cy='84' r='3.5'/%3E%3Ccircle cx='90' cy='88' r='2.5'/%3E%3C/g%3E%3Cg fill='%23a8651c' opacity='.55'%3E%3Cellipse cx='22' cy='22' rx='6' ry='4'/%3E%3Cellipse cx='64' cy='15' rx='5' ry='3.5'/%3E%3Cellipse cx='44' cy='57' rx='6' ry='4'/%3E%3Cellipse cx='80' cy='63' rx='5' ry='3.5'/%3E%3Cellipse cx='14' cy='79' rx='4' ry='3'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+html,
+body {
+  background: var(--bg);
+}
+
+/* ---------- الخلفية: مخمل + أعمدة ---------- */
+.bg {
+  background:
+    radial-gradient(120% 70% at 50% -10%, #96162c 0%, rgba(150, 22, 44, 0) 60%),
+    radial-gradient(90% 60% at 50% 110%, #2c0409 0%, rgba(44, 4, 9, 0) 70%),
+    #5c0b18;
+}
+
+/* حبيبات المخمل */
+.bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.bg i {
+  opacity: 0.55;
+}
+
+.bg i:nth-child(1) {
+  background: radial-gradient(circle, rgba(196, 42, 66, 0.55), transparent 62%);
+}
+
+.bg i:nth-child(2) {
+  background: radial-gradient(circle, rgba(36, 3, 8, 0.75), transparent 62%);
+}
+
+.bg i:nth-child(3) {
+  background: radial-gradient(circle, rgba(231, 197, 126, 0.12), transparent 62%);
+}
+
+.col {
+  position: absolute;
+  bottom: 0;
+  width: min(30vw, 150px);
+  height: min(86vh, 660px);
+  opacity: 0.15;
+  filter: drop-shadow(0 0 24px rgba(0, 0, 0, 0.5));
+  animation: col-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.col-l {
+  left: -13vw;
+}
+
+.col-r {
+  right: -13vw;
+  animation-delay: 0.12s;
+}
+
+body[data-view="viewWallet"] .col {
+  opacity: 0.22;
+}
+
+@keyframes col-in {
+  from {
+    opacity: 0;
+    transform: translateY(60px);
+  }
+}
+
+/* ---------- الخط والشعار ---------- */
+.wordmark,
+.brand {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--ivory);
+}
+
+.brand {
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+}
+
+.avatar {
+  background: var(--gold-grad);
+  color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(251, 246, 234, 0.55), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- البطاقات ---------- */
+.card,
+.a-stat,
+.stat,
+.ann,
+.a-seg {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.intro-icon {
+  background: var(--leopard), var(--gold-grad);
+  background-size: 64px, cover;
+  color: transparent;
+  box-shadow: 0 0 0 3px var(--ivory), 0 14px 34px rgba(0, 0, 0, 0.5);
+}
+
+.intro h1 {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 26px;
+}
+
+.hero {
+  color: var(--ink);
+  background: var(--leopard), var(--gold-grad);
+  background-size: 96px, cover;
+  box-shadow: 0 0 0 2px rgba(251, 246, 234, 0.7), 0 16px 38px rgba(0, 0, 0, 0.5);
+}
+
+/* طبقة عاجية تخلي النص واضح فوق النقشة */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 248, 228, 0.9) 30%, rgba(255, 248, 228, 0.35) 100%);
+}
+
+.hero .btn {
+  background: var(--ink);
+  color: var(--ivory);
+}
+
+.hero .btn-ghost {
+  background: rgba(58, 8, 16, 0.16);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px rgba(58, 8, 16, 0.55);
+}
+
+.copy-hint {
+  background: rgba(58, 8, 16, 0.14);
+}
+
+/* ---------- الأزرار ---------- */
+.btn {
+  background: var(--marble);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -3px 0 rgba(120, 92, 52, 0.35), 0 10px 22px rgba(0, 0, 0, 0.35);
+}
+
+.btn:disabled {
+  box-shadow: none;
+}
+
+.btn-collect,
+.game-actions .btn-free {
+  position: relative;
+  overflow: hidden;
+  background: var(--gold-grad);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 10px 26px rgba(0, 0, 0, 0.4);
+}
+
+.btn-collect:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  transform: skewX(-18deg);
+  animation: sheen 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 10px 26px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(241, 207, 126, 0.6);
+  }
+  100% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 10px 26px rgba(0, 0, 0, 0.4), 0 0 0 14px rgba(241, 207, 126, 0);
+  }
+}
+
+.game-actions .btn-demo,
+.btn-quiet {
+  background: rgba(40, 4, 9, 0.55);
+  color: var(--ivory);
+  border: 1px solid rgba(246, 236, 214, 0.4);
+  box-shadow: none;
+}
+
+.btn-danger {
+  background: #1d0407;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  box-shadow: none;
+}
+
+.badge.bad {
+  color: #2a0509;
+  background: var(--danger);
+}
+
+.ann-btn,
+.a-seg-btn[aria-selected="true"] {
+  color: var(--ink);
+}
+
+.chip[aria-checked="true"] {
+  background: rgba(231, 197, 126, 0.2);
+  color: var(--ivory);
+}
+
+.a-switch input {
+  accent-color: #e2bd6a;
+}
+
+/* ---------- التنقل السفلي ---------- */
+.tabs {
+  background: #33050b;
+  border: 1px solid rgba(231, 197, 126, 0.45);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.tab {
+  color: #cfa9a0;
+}
+
+.tab[aria-current="page"] {
+  color: var(--ink);
+  background: var(--gold-grad);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* ---------- لوحة الرصيد: رخام ---------- */
+.balance-bar {
+  color: var(--ink);
+  background: var(--marble);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -4px 0 rgba(120, 92, 52, 0.3), 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+.balance-bar::after {
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+}
+
+.balance-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.balance-bar .wordmark {
+  color: #7a0f20;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.balance-label {
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.balance-value {
+  font-size: 24px;
+}
+
+/* ---------- اللعبة ---------- */
+.score-value {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 46px;
+  background: var(--gold-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
+}
+
+.score-value.lost {
+  background: none;
+  color: #1d0407;
+  filter: drop-shadow(0 0 1px rgba(255, 163, 145, 0.9));
+}
+
+.score-value.won {
+  background: linear-gradient(180deg, #fffbe8, #f1cf7e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 16px rgba(241, 207, 126, 0.75));
+}
+
+.game-status.win {
+  color: var(--gold);
+}
+
+/* المربعات: بلاطات رخام عاجي بخطوط مثل تخديد العمود */
+.tile {
+  color: var(--ink);
+  background:
+    repeating-linear-gradient(90deg, rgba(120, 96, 60, 0) 0 9px, rgba(120, 96, 60, 0.13) 9px 10px),
+    var(--marble);
+  box-shadow: inset 0 2px 0 #fff, inset 0 -6px 0 rgba(120, 92, 52, 0.38), inset 0 0 0 1px rgba(160, 130, 80, 0.35), 0 7px 14px rgba(0, 0, 0, 0.4);
+}
+
+.tile:not(.open)::after {
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%);
+}
+
+.board.locked .tile {
+  filter: saturate(0.6) brightness(0.62);
+}
+
+.tile.open {
+  color: var(--text);
+}
+
+.tile.gem {
+  background: radial-gradient(circle at 50% 36%, rgba(241, 207, 126, 0.3), rgba(241, 207, 126, 0.04) 72%), #33050b;
+  box-shadow: inset 0 0 0 1.5px rgba(241, 207, 126, 0.55);
+}
+
+.tile.gem:not(.ghost)::before {
+  border-color: var(--gold);
+}
+
+.tile-value {
+  color: var(--ivory);
+}
+
+.tile.bomb {
+  background: radial-gradient(circle at 50% 38%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 72%), #2a0408;
+  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.7);
+}
+
+.tile.hit {
+  box-shadow: inset 0 0 0 2.5px #ffcabd, 0 0 30px rgba(0, 0, 0, 0.9);
+}
+
+.tile.rare {
+  background: radial-gradient(circle at 50% 36%, rgba(241, 207, 126, 0.6), rgba(241, 207, 126, 0.14) 72%), #33050b;
+  box-shadow: inset 0 0 0 2px var(--gold), 0 0 18px rgba(241, 207, 126, 0.5);
+}
+
+/* أعلى جوهرة: نقشة الفهد على ذهب */
+.tile.top {
+  background: var(--leopard), var(--gold-grad);
+  background-size: 54px, cover;
+  box-shadow: inset 0 0 0 2.5px var(--ivory), 0 0 26px rgba(241, 207, 126, 0.9);
+}
+
+.tile.top .tile-value {
+  color: var(--ink);
+  text-shadow: 0 0 6px #fff, 0 0 2px #fff;
+  font-size: clamp(13px, 4vw, 17px);
+}
+
+@keyframes glow {
+  to {
+    box-shadow: inset 0 0 0 2.5px #fff, 0 0 40px rgba(255, 224, 150, 1);
+  }
+}
+
+.tile.ghost {
+  opacity: 0.5;
+}
+
+#viewGame.demo .board {
+  outline-color: rgba(251, 246, 234, 0.6);
+}
+
+.demo-chip {
+  color: var(--ink);
+  background: var(--ivory);
+}
+
+/* ---------- المؤثرات ---------- */
+.fx-float {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--ivory);
+}
+
+.fx-float.gold {
+  color: var(--gold);
+  font-size: 32px;
+}
+
+/* على خلفية حمراء الوميض الأحمر ما يبان، فالقنبلة تعتّم الشاشة لحظة */
+.fx-flash {
+  background: radial-gradient(circle at 50% 55%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.78) 75%);
+}
+
+/* ---------- النوافذ والإعلانات واللوحة ---------- */
+.sheet-backdrop {
+  background: rgba(20, 2, 5, 0.84);
+}
+
+.toast {
+  background: var(--ivory);
+  color: var(--ink);
+}
+
+.ann-free_game {
+  border-color: rgba(241, 207, 126, 0.75);
+  background: linear-gradient(120deg, rgba(64, 6, 14, 0.9) 35%, rgba(64, 6, 14, 0.55)), var(--leopard), var(--gold-grad);
+  background-size: auto, 72px, cover;
+}
+
+.ann-ad {
+  border-color: rgba(246, 236, 214, 0.45);
+}
+
+.a-stat-value {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.badge.ok {
+  color: #0d3526;
+}
+
+.qr {
+  box-shadow: 0 0 0 3px var(--gold);
 }
