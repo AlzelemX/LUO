@@ -800,3 +800,28 @@ form {
     animation: none;
   }
 }
+
+/* ---------- الرصيد ---------- */
+.balance-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(150deg, #2e8be6 0%, #5b6cf2 55%, #7c5cf6 100%);
+  box-shadow: 0 10px 24px rgba(76, 110, 240, 0.28);
+}
+
+.balance-label {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.balance-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}

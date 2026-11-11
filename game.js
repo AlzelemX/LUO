@@ -104,6 +104,138 @@
     return gemTable.rows[gemTable.rows.length - 1].value;
   }
 
+  /* ---------- الرصيد المحفوظ ---------- */
+
+  /*
+   * رصيد نقاط داخل اللعبة فقط: ما له قيمة مالية وما له علاقة بالمحفظة.
+   * يُحفظ في Telegram CloudStorage (مربوط بحساب المستخدم ويتزامن بين أجهزته)،
+   * وخارج تلقرام يُحفظ في المتصفح. التخزين من جهة المستخدم، يعني يقدر يعدّله.
+   */
+  var BALANCE_KEY = "luo_balance";
+  var PENDING_KEY = "luo_balance_pending";
+  var STORE_TIMEOUT_MS = 8000;
+  var MAX_BALANCE = 999999999999999; // 15 خانة، أقل من حد الأعداد الصحيحة الآمنة
+
+  var useCloud = false;
+  try {
+    useCloud = Boolean(tg && tg.initData && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast("6.9"));
+  } catch (e) { useCloud = false; }
+
+  function withTimeout(run) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (!done) { done = true; reject(new Error("STORE_TIMEOUT")); }
+      }, STORE_TIMEOUT_MS);
+      function settle(fn, value) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        fn(value);
+      }
+      try {
+        run(function (v) { settle(resolve, v); }, function (e) { settle(reject, e); });
+      } catch (e) {
+        settle(reject, e);
+      }
+    });
+  }
+
+  function storeGet(key) {
+    return withTimeout(function (resolve, reject) {
+      if (useCloud) {
+        tg.CloudStorage.getItem(key, function (err, value) {
+          if (err) reject(new Error(String(err)));
+          else resolve(value || "");
+        });
+      } else {
+        resolve(window.localStorage.getItem(key) || "");
+      }
+    });
+  }
+
+  function storeSet(key, value) {
+    return withTimeout(function (resolve, reject) {
+      if (useCloud) {
+        tg.CloudStorage.setItem(key, value, function (err, ok) {
+          if (err || ok === false) reject(new Error(String(err || "STORE_FAILED")));
+          else resolve();
+        });
+      } else {
+        window.localStorage.setItem(key, value);
+        resolve();
+      }
+    });
+  }
+
+  function parseBalance(raw) {
+    var str = String(raw == null ? "" : raw);
+    if (!/^\d{1,15}$/.test(str)) return 0;
+    return Number(str);
+  }
+
+  // نقاط فاز فيها اللاعب وما تأكد حفظها بعد؛ نسخة منها في المتصفح عشان ما تضيع لو انقفل التطبيق
+  function readPending() {
+    try { return parseBalance(window.localStorage.getItem(PENDING_KEY)); } catch (e) { return 0; }
+  }
+
+  function writePending(n) {
+    try {
+      if (n > 0) window.localStorage.setItem(PENDING_KEY, String(n));
+      else window.localStorage.removeItem(PENDING_KEY);
+    } catch (e) { /* التخزين المحلي غير متاح */ }
+  }
+
+  var savedBalance = null; // آخر قيمة مؤكدة من التخزين (null = ما انقرأت)
+  var pending = readPending();
+  var syncing = null;
+
+  function renderBalance(saveFailed) {
+    var el = $("balanceValue");
+    el.textContent = savedBalance === null && pending === 0 ? "…" : String(Math.min((savedBalance || 0) + pending, MAX_BALANCE));
+    $("gameBalanceNote").hidden = !saveFailed;
+  }
+
+  // يقرأ الرصيد من التخزين، يضيف عليه المعلّق، ويحفظ. استدعاء واحد في نفس الوقت.
+  function syncBalance() {
+    if (syncing) return syncing;
+    syncing = (async function () {
+      var failed = false;
+      try {
+        var current = parseBalance(await storeGet(BALANCE_KEY));
+        var adding = pending;
+        if (adding > 0) {
+          var next = Math.min(current + adding, MAX_BALANCE);
+          await storeSet(BALANCE_KEY, String(next));
+          pending -= adding;
+          writePending(pending);
+          current = next;
+        }
+        savedBalance = current;
+      } catch (e) {
+        failed = true;
+        console.error("Balance sync failed:", e);
+      }
+      syncing = null;
+      renderBalance(failed);
+      if (!failed && pending > 0) return syncBalance(); // فوز جديد وصل أثناء الحفظ
+    })();
+    return syncing;
+  }
+
+  function addToBalance(amount) {
+    if (!Number.isSafeInteger(amount) || amount <= 0) return;
+    pending = Math.min(pending + amount, MAX_BALANCE);
+    writePending(pending);
+    renderBalance(false);
+    syncBalance();
+  }
+
+  // إعادة المحاولة لما يرجع المستخدم للتطبيق
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && (pending > 0 || savedBalance === null)) syncBalance();
+  });
+
   /* ---------- اللعبة ---------- */
 
   var board = $("board");
@@ -228,7 +360,8 @@
     if (values[index] >= maxGemValue) haptic("success");
     if (found === GEMS) {
       haptic("success");
-      setStatus("🏆 فزت!", "win");
+      setStatus("🏆 فزت! +" + score, "win");
+      addToBalance(score);
       finish();
     } else {
       haptic("light");
@@ -307,6 +440,9 @@
   }
 
   newBtn.addEventListener("click", onNewGame);
+
+  renderBalance(false);
+  syncBalance();
 
   if (paid) {
     drawBoard(true);
